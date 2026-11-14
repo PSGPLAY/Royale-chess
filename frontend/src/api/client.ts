@@ -11,6 +11,7 @@ export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
     const host = window.location.hostname || 'localhost'
+    if (import.meta.env.PROD) return 'https://royale-chess.onrender.com'
     return `${protocol}//${host}:8000`
   }
   return 'http://localhost:8000'
@@ -21,6 +22,7 @@ export function getWsBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     if (import.meta.env.DEV) return `${protocol}//${window.location.host}`
+    if (import.meta.env.PROD) return 'wss://royale-chess.onrender.com'
     const host = window.location.hostname || 'localhost'
     return `${protocol}//${host}:8000`
   }
