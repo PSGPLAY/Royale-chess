@@ -1,0 +1,11 @@
+export * from './types'
+export * from './BasePedestal'
+export * from './KingPiece'
+export * from './QueenPiece'
+export * from './RookPiece'
+export * from './BishopPiece'
+export * from './KnightPiece'
+export * from './PawnPiece'
+export * from './TreasurePot'
+export * from './ChessPiece'
+
