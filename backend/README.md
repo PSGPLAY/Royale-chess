@@ -60,6 +60,17 @@ or with Daphne:
 daphne -b 127.0.0.1 -p 8000 config.asgi:application
 ```
 
+### Render Deployment
+
+For a Render service whose Root Directory is `backend`, set:
+
+* Build Command: `pip install -r requirements.txt`
+* Start Command: `bash render-start.sh`
+
+The start script applies Django migrations before starting Daphne. This is required for fresh Render databases, otherwise login fails with `no such table: auth_user`.
+
+Set `DJANGO_DEBUG=False` in the Render environment for production so Django does not expose detailed debug pages on server errors.
+
 ### 4. Run Test Suite
 ```powershell
 python manage.py test
