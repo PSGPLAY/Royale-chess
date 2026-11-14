@@ -4,6 +4,9 @@
  */
 
 export function getApiBaseUrl(): string {
+  // This deployed frontend is paired with the Render API. Prefer the known
+  // production host over stale build-time environment values from Cloudflare.
+  if (import.meta.env.PROD) return 'https://royale-chess.onrender.com'
   if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL
   // In development use the Vite origin so LAN/mobile browsers can reach the
   // backend through Vite's proxy without connecting to localhost on the phone.
@@ -11,18 +14,17 @@ export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
     const host = window.location.hostname || 'localhost'
-    if (import.meta.env.PROD) return 'https://royale-chess.onrender.com'
     return `${protocol}//${host}:8000`
   }
   return 'http://localhost:8000'
 }
 
 export function getWsBaseUrl(): string {
+  if (import.meta.env.PROD) return 'wss://royale-chess.onrender.com'
   if (import.meta.env.VITE_WS_BASE_URL) return import.meta.env.VITE_WS_BASE_URL
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     if (import.meta.env.DEV) return `${protocol}//${window.location.host}`
-    if (import.meta.env.PROD) return 'wss://royale-chess.onrender.com'
     const host = window.location.hostname || 'localhost'
     return `${protocol}//${host}:8000`
   }
