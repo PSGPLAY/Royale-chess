@@ -8,9 +8,8 @@ export function getApiBaseUrl(): string {
   // production host over stale build-time environment values from Cloudflare.
   if (import.meta.env.PROD) return 'https://royale-chess.onrender.com'
   if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL
-  // In development use the Vite origin so LAN/mobile browsers can reach the
-  // backend through Vite's proxy without connecting to localhost on the phone.
-  if (import.meta.env.DEV) return ''
+  // Let localhost frontend development use the deployed backend by default.
+  if (import.meta.env.DEV) return 'https://royale-chess.onrender.com'
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
     const host = window.location.hostname || 'localhost'
@@ -22,9 +21,9 @@ export function getApiBaseUrl(): string {
 export function getWsBaseUrl(): string {
   if (import.meta.env.PROD) return 'wss://royale-chess.onrender.com'
   if (import.meta.env.VITE_WS_BASE_URL) return import.meta.env.VITE_WS_BASE_URL
+  if (import.meta.env.DEV) return 'wss://royale-chess.onrender.com'
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    if (import.meta.env.DEV) return `${protocol}//${window.location.host}`
     const host = window.location.hostname || 'localhost'
     return `${protocol}//${host}:8000`
   }
@@ -99,12 +98,16 @@ class ApiClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = this.getToken()
+    // Public auth endpoints must not receive a previously stored token. A stale
+    // token (for example, one issued before the Render database was reset)
+    // makes DRF reject the request before the login/register view runs.
+    const isPublicAuthRequest = /^\/api\/auth\/(login|register)\//.test(endpoint)
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> || {}),
     }
 
-    if (token) {
+    if (token && !isPublicAuthRequest) {
       headers['Authorization'] = `Token ${token}`
     }
 
@@ -162,6 +165,10 @@ class ApiClient {
 
   async getLeaderboard(limit = 20): Promise<UserProfileData[]> {
     return this.request<UserProfileData[]>(`/api/auth/leaderboard/?limit=${limit}`)
+  }
+
+  async getMatchHistory(): Promise<MatchData[]> {
+    return this.request<MatchData[]>('/api/matches/history/')
   }
 
   // ── Matchmaking & Matches ─────────────────────────────────────────────────
