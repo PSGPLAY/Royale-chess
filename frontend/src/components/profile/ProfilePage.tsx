@@ -2,7 +2,7 @@ import type { FC } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import {
   X, Trophy, Coins, Swords, Shield, LogOut, Crown, Medal,
-  TrendingUp, Users, Calendar, Target, Zap, Star,
+  TrendingUp, Calendar, Target, Zap, Star,
   ChevronRight, RotateCcw, Globe, User, Award,
 } from 'lucide-react'
 import { useAuthStore, authStore } from '../../state/authStore'
@@ -59,12 +59,6 @@ function formatTimeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
   return `${days}d ago`
-}
-
-function formatDuration(moveCount: number): string {
-  const estimate = moveCount * 15
-  if (estimate < 60) return `${estimate}s`
-  return `${Math.floor(estimate / 60)}m ${estimate % 60}s`
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────

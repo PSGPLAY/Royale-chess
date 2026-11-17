@@ -3,13 +3,39 @@
  * Connects the React frontend to the Django REST & Channels backend.
  */
 
+const RENDER_API_URL = 'https://royale-chess.onrender.com'
+const RENDER_WS_URL = 'wss://royale-chess.onrender.com'
+
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '')
+}
+
+function joinBaseUrl(baseUrl: string, path: string): string {
+  return `${normalizeBaseUrl(baseUrl)}/${path.replace(/^\/+/, '')}`
+}
+
+function productionBaseUrl(url: string, protocol: 'https:' | 'wss:', fallback: string): string {
+  try {
+    const parsedUrl = new URL(url)
+    if (['localhost', '127.0.0.1', '0.0.0.0', '[::1]'].includes(parsedUrl.hostname)) {
+      return fallback
+    }
+    parsedUrl.protocol = protocol
+    return normalizeBaseUrl(parsedUrl.toString())
+  } catch {
+    return fallback
+  }
+}
+
 export function getApiBaseUrl(): string {
-  // This deployed frontend is paired with the Render API. Prefer the known
-  // production host over stale build-time environment values from Cloudflare.
-  if (import.meta.env.PROD) return 'https://royale-chess.onrender.com'
-  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL
+  const configuredUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL
+  if (configuredUrl) {
+    return import.meta.env.PROD
+      ? productionBaseUrl(configuredUrl, 'https:', RENDER_API_URL)
+      : normalizeBaseUrl(configuredUrl)
+  }
   // Let localhost frontend development use the deployed backend by default.
-  if (import.meta.env.DEV) return 'https://royale-chess.onrender.com'
+  if (import.meta.env.PROD || import.meta.env.DEV) return RENDER_API_URL
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
     const host = window.location.hostname || 'localhost'
@@ -19,9 +45,13 @@ export function getApiBaseUrl(): string {
 }
 
 export function getWsBaseUrl(): string {
-  if (import.meta.env.PROD) return 'wss://royale-chess.onrender.com'
-  if (import.meta.env.VITE_WS_BASE_URL) return import.meta.env.VITE_WS_BASE_URL
-  if (import.meta.env.DEV) return 'wss://royale-chess.onrender.com'
+  const configuredUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_WS_BASE_URL
+  if (configuredUrl) {
+    return import.meta.env.PROD
+      ? productionBaseUrl(configuredUrl, 'wss:', RENDER_WS_URL)
+      : normalizeBaseUrl(configuredUrl)
+  }
+  if (import.meta.env.PROD || import.meta.env.DEV) return RENDER_WS_URL
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.hostname || 'localhost'
@@ -111,7 +141,7 @@ class ApiClient {
       headers['Authorization'] = `Token ${token}`
     }
 
-    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+    const response = await fetch(joinBaseUrl(getApiBaseUrl(), endpoint), {
       ...options,
       headers,
     })
@@ -223,7 +253,7 @@ class ApiClient {
   }
 
   createWebSocket(matchId: string): WebSocket {
-    return new WebSocket(`${getWsBaseUrl()}/ws/match/${matchId}/`)
+    return new WebSocket(joinBaseUrl(getWsBaseUrl(), `/ws/match/${matchId}/`))
   }
 }
 
