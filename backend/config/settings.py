@@ -51,9 +51,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -86,12 +86,11 @@ ASGI_APPLICATION = 'config.asgi.application'
 # Default: SQLite3 for zero-config out-of-the-box local development
 # Supports PostgreSQL when DATABASE_URL or POSTGRES_* environment variables are supplied
 DATABASES = {
-    'default': dj_database_url.config(
-        default='postgresql://royale_data_user:BwNpPuCxqSvBnHCcBZK6N09Hh4lK9xtZ@dpg-dbuc1m88v5cc738lesb0-a.ohio-postgres.render.com/royale_data',
+    "default": dj_database_url.config(
+        default=os.environ.get("DATABASE_URL"),
         conn_max_age=600,
-        ssl_require=True,
-    ),
-    
+        ssl_require=False,
+    )
 }
 
 STATIC_URL = '/static/'
@@ -135,9 +134,6 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
-
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
