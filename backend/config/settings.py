@@ -6,6 +6,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+import dj_database_url
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -84,10 +86,12 @@ ASGI_APPLICATION = 'config.asgi.application'
 # Default: SQLite3 for zero-config out-of-the-box local development
 # Supports PostgreSQL when DATABASE_URL or POSTGRES_* environment variables are supplied
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default='postgresql://royale_data_user:BwNpPuCxqSvBnHCcBZK6N09Hh4lK9xtZ@dpg-dbuc1m88v5cc738lesb0-a.ohio-postgres.render.com/royale_data',
+        conn_max_age=600,
+        ssl_require=True,
+    ),
+    
 }
 
 STATIC_URL = '/static/'
