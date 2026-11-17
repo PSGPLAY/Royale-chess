@@ -4,11 +4,13 @@ import { GAME_MODES } from './gameModeConfig'
 import { gameStore } from './gameStore'
 import { royalModeStore } from '../royal/royalModeStore'
 
-export type AppScreen = 'landing' | 'game'
+export type ProfileTab = 'overview' | 'history' | 'leaderboard'
+export type AppScreen = 'landing' | 'game' | 'profile'
 
 export interface NavigationState {
   currentScreen: AppScreen
   activeModeId: GameModeId
+  profileTab: ProfileTab
 }
 
 type Listener = () => void
@@ -17,6 +19,7 @@ class NavigationStore {
   private state: NavigationState = {
     currentScreen: 'landing', // Starts on the chess.com-style landing page
     activeModeId: 'pvp_royale',
+    profileTab: 'overview',
   }
 
   private listeners = new Set<Listener>()
@@ -64,6 +67,10 @@ class NavigationStore {
       currentScreen: 'game',
       activeModeId: isRoyale ? 'royale' : 'normal',
     })
+  }
+
+  openProfilePage = (profileTab: ProfileTab = 'overview') => {
+    this.setState({ currentScreen: 'profile', profileTab })
   }
 
   /**

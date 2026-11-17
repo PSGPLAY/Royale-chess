@@ -1,11 +1,12 @@
 import type { FC } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  X, Trophy, Coins, Swords, Shield, LogOut, Crown, Medal,
+  ArrowLeft, Trophy, Coins, Swords, Shield, LogOut, Crown, Medal,
   TrendingUp, Calendar, Target, Zap, Star,
   ChevronRight, RotateCcw, Globe, User, Award,
 } from 'lucide-react'
 import { useAuthStore, authStore } from '../../state/authStore'
+import { navigationStore, useNavigationStore } from '../../state/appNavigationStore'
 import { api } from '../../api/client'
 import type { UserProfileData, MatchData } from '../../api/client'
 import { audioEngine } from '../../audio/audioEngine'
@@ -66,8 +67,9 @@ function formatTimeAgo(dateStr: string): string {
 type TabId = 'overview' | 'history' | 'leaderboard'
 
 export const ProfilePage: FC = () => {
-  const { isProfileModalOpen, user, isAuthenticated } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<TabId>('overview')
+  const { user, isAuthenticated } = useAuthStore()
+  const { currentScreen, profileTab } = useNavigationStore()
+  const [activeTab, setActiveTab] = useState<TabId>(profileTab)
   const [leaderboard, setLeaderboard] = useState<UserProfileData[]>([])
   const [matchHistory, setMatchHistory] = useState<MatchData[]>([])
   const [loading, setLoading] = useState(false)
@@ -109,12 +111,12 @@ export const ProfilePage: FC = () => {
   }, [isAuthenticated])
 
   useEffect(() => {
-    if (!isProfileModalOpen) return
+    if (currentScreen !== 'profile') return
     if (activeTab === 'leaderboard') fetchLeaderboard()
     if (activeTab === 'history') fetchHistory()
-  }, [isProfileModalOpen, activeTab, fetchLeaderboard, fetchHistory])
+  }, [currentScreen, activeTab, fetchLeaderboard, fetchHistory])
 
-  if (!isProfileModalOpen) return null
+  if (currentScreen !== 'profile') return null
 
   const handleLogout = async () => {
     audioEngine.playButtonClick()
@@ -137,12 +139,13 @@ export const ProfilePage: FC = () => {
   }
 
   return (
-    <div className="profile-page-overlay" onClick={() => authStore.closeProfileModal()}>
-      <div className="profile-page-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="profile-page-screen">
+      <div className="profile-page-panel">
 
         {/* ── Close ─────────────────────────────────────────────────── */}
-        <button className="ppage-close-btn" onClick={() => authStore.closeProfileModal()}>
-          <X size={18} />
+        <button className="ppage-close-btn" onClick={() => navigationStore.returnToLanding()} aria-label="Back to lobby">
+          <ArrowLeft size={18} />
+          <span>Back to Lobby</span>
         </button>
 
         {/* ══════════════════════════════════════════════════════════════
@@ -233,7 +236,7 @@ export const ProfilePage: FC = () => {
             {!isAuthenticated ? (
               <button
                 className="btn-ppage-enlist"
-                onClick={() => { authStore.closeProfileModal(); authStore.openAuthModal() }}
+                onClick={() => { navigationStore.returnToLanding(); authStore.openAuthModal() }}
               >
                 <User size={16} />
                 <span>Create Account</span>
@@ -396,7 +399,7 @@ export const ProfilePage: FC = () => {
                   </div>
                   <button
                     className="btn-ppage-enlist-inline"
-                    onClick={() => { authStore.closeProfileModal(); authStore.openAuthModal() }}
+                    onClick={() => { navigationStore.returnToLanding(); authStore.openAuthModal() }}
                   >
                     Join Now
                   </button>

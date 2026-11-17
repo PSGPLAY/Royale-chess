@@ -10,7 +10,7 @@ import { AudioControls } from './components/ui/AudioControls'
 import { MoveHistoryPanel } from './components/ui/MoveHistoryPanel'
 import { LandingPage } from './components/landing/LandingPage'
 import { AuthModal } from './components/auth/AuthModal'
-import { ProfileModal } from './components/profile/ProfileModal'
+import { ProfilePage } from './components/profile/ProfilePage'
 import { MatchmakingModal } from './components/multiplayer/MatchmakingModal'
 import { useNavigationStore } from './state/appNavigationStore'
 import { useGameStore } from './state/gameStore'
@@ -87,11 +87,10 @@ export const App: FC = () => {
   return (
     <>
       {/* 1. Active Screen (Landing Page or 3D Match) */}
-      {currentScreen === 'landing' ? <LandingPage /> : <GameScreen />}
+      {currentScreen === 'landing' ? <LandingPage /> : currentScreen === 'profile' ? <ProfilePage /> : <GameScreen />}
 
       {/* 2. Global Modals for Auth, Profile & Online Matchmaking */}
       <AuthModal />
-      <ProfileModal />
       <MatchmakingModal />
     </>
   )

@@ -9,7 +9,6 @@ export interface AuthState {
   isLoading: boolean
   error: string | null
   isAuthModalOpen: boolean
-  isProfileModalOpen: boolean
 }
 
 type Listener = () => void
@@ -22,7 +21,6 @@ class AuthStore {
     isLoading: false,
     error: null,
     isAuthModalOpen: false,
-    isProfileModalOpen: false,
   }
 
   private listeners = new Set<Listener>()
@@ -54,14 +52,6 @@ class AuthStore {
 
   closeAuthModal = () => {
     this.setState({ isAuthModalOpen: false, error: null })
-  }
-
-  openProfileModal = () => {
-    this.setState({ isProfileModalOpen: true })
-  }
-
-  closeProfileModal = () => {
-    this.setState({ isProfileModalOpen: false })
   }
 
   login = async (usernameOrEmail: string, password: string): Promise<boolean> => {
@@ -117,7 +107,6 @@ class AuthStore {
         user: null,
         token: null,
         isAuthenticated: false,
-        isProfileModalOpen: false,
       })
     }
   }

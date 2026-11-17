@@ -55,7 +55,7 @@ export const LandingPage: FC = () => {
             className="nav-item nav-item-rankings"
             onClick={() => {
               audioEngine.playButtonClick()
-              authStore.openProfileModal()
+              navigationStore.openProfilePage('leaderboard')
             }}
           >
             <Trophy size={14} />
@@ -66,7 +66,7 @@ export const LandingPage: FC = () => {
           {isAuthenticated && user ? (
             <div
               className="nav-profile-pill"
-              onClick={() => authStore.openProfileModal()}
+              onClick={() => navigationStore.openProfilePage()}
               title="View Commander Profile & Rankings"
             >
               <div className="nav-avatar">🏴‍☠️</div>
@@ -86,7 +86,7 @@ export const LandingPage: FC = () => {
             <div className="nav-guest-group">
               <div
                 className="nav-guest-pill"
-                onClick={() => authStore.openProfileModal()}
+                onClick={() => navigationStore.openProfilePage()}
                 title="View Guest Session & Rankings"
               >
                 <span className="guest-badge-dot" />
