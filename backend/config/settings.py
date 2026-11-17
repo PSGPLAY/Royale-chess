@@ -16,6 +16,9 @@ DEBUG = False
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 SECURE_SSL_REDIRECT = True
 
 ALLOWED_HOSTS = [
@@ -147,3 +150,5 @@ CSRF_TRUSTED_ORIGINS = [
     'http://10.*.*.*',
     "https://royale-chess.onrender.com",
 ]
+
+
