@@ -67,9 +67,9 @@ For a Render service whose Root Directory is `backend`, set:
 * Build Command: `pip install -r requirements.txt`
 * Start Command: `bash render-start.sh`
 
-The start script applies Django migrations before starting Daphne. This is required for fresh Render databases, otherwise login fails with `no such table: auth_user`.
+The start script applies Django migrations to the configured database before starting Daphne. This is required for fresh databases, otherwise login can fail with `no such table: auth_user`.
 
-Set `DJANGO_DEBUG=False` in the Render environment for production so Django does not expose detailed debug pages on server errors.
+`DEBUG` is disabled in `config/settings.py`. Set a unique, high-entropy `DJANGO_SECRET_KEY` in Render before deployment; the source currently has a predictable fallback and is not safe for production if that variable is absent.
 
 ### 4. Run Test Suite
 ```powershell

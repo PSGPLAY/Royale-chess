@@ -13,32 +13,40 @@ export const PlayerBanners: FC = () => {
   const { isOnlineMatch, myRole, activeMatch } = useMultiplayerStore()
   const { user } = useAuthStore()
   const { gameMode, wallets } = useRoyalModeStore()
-  const [clockNow, setClockNow] = useState(Date.now())
-  const [clockBaseline, setClockBaseline] = useState({ white: 600000, black: 600000, receivedAt: Date.now() })
+  const clockBaseline = useRef({ white: 600000, black: 600000, receivedAt: 0 })
+  const [clockDisplay, setClockDisplay] = useState({ white: 600000, black: 600000 })
   const clockClaimedFor = useRef<string | null>(null)
 
-  useEffect(() => {
-    const interval = window.setInterval(() => setClockNow(Date.now()), 200)
-    return () => window.clearInterval(interval)
-  }, [])
+  const activeMatchId = activeMatch?.id
+  const matchUpdatedAt = activeMatch?.updated_at
+  const whiteTimeRemaining = activeMatch?.white_time_remaining_ms
+  const blackTimeRemaining = activeMatch?.black_time_remaining_ms
+  const matchStatus = activeMatch?.status
+  const matchTurn = activeMatch?.turn
 
   useEffect(() => {
-    if (!activeMatch) return
-    setClockBaseline({
-      white: activeMatch.white_time_remaining_ms,
-      black: activeMatch.black_time_remaining_ms,
-      receivedAt: Date.now(),
-    })
+    if (activeMatchId && whiteTimeRemaining !== undefined && blackTimeRemaining !== undefined) {
+      clockBaseline.current = {
+        white: whiteTimeRemaining,
+        black: blackTimeRemaining,
+        receivedAt: performance.now(),
+      }
+    }
     clockClaimedFor.current = null
-  }, [activeMatch?.id, activeMatch?.updated_at, activeMatch?.white_time_remaining_ms, activeMatch?.black_time_remaining_ms])
 
-  const elapsed = activeMatch?.status === 'active' && activeMatch.turn === 'w'
-    ? Math.max(0, clockNow - clockBaseline.receivedAt)
-    : activeMatch?.status === 'active' && activeMatch.turn === 'b'
-      ? Math.max(0, clockNow - clockBaseline.receivedAt)
-      : 0
-  const whiteMs = Math.max(0, clockBaseline.white - (activeMatch?.turn === 'w' ? elapsed : 0))
-  const blackMs = Math.max(0, clockBaseline.black - (activeMatch?.turn === 'b' ? elapsed : 0))
+    const interval = window.setInterval(() => {
+      const baseline = clockBaseline.current
+      const elapsed = matchStatus === 'active' ? Math.max(0, performance.now() - baseline.receivedAt) : 0
+      setClockDisplay({
+        white: Math.max(0, baseline.white - (matchStatus === 'active' && matchTurn === 'w' ? elapsed : 0)),
+        black: Math.max(0, baseline.black - (matchStatus === 'active' && matchTurn === 'b' ? elapsed : 0)),
+      })
+    }, 200)
+    return () => window.clearInterval(interval)
+  }, [activeMatchId, matchUpdatedAt, whiteTimeRemaining, blackTimeRemaining, matchStatus, matchTurn])
+
+  const whiteMs = clockDisplay.white
+  const blackMs = clockDisplay.black
 
   useEffect(() => {
     if (!activeMatch || activeMatch.status !== 'active') return

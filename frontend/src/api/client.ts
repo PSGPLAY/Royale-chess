@@ -6,6 +6,7 @@
 const RENDER_API_URL = 'https://royale-chess.onrender.com'
 const RENDER_WS_URL = 'wss://royale-chess.onrender.com'
 export const AUTH_PROFILE_STORAGE_KEY = 'royal_chess_auth_profile'
+const MATCH_TOKEN_PREFIX = 'royal_chess_match_token:'
 
 export class ApiError extends Error {
   readonly status: number
@@ -130,11 +131,20 @@ export interface MatchmakeResult {
   role: 'w' | 'b'
   match: MatchData
   message: string
+  seat_token: string
 }
 
 class ApiClient {
   private getToken(): string | null {
     return localStorage.getItem('royal_chess_auth_token')
+  }
+
+  private getMatchToken(matchId: string): string | null {
+    return localStorage.getItem(`${MATCH_TOKEN_PREFIX}${matchId}`)
+  }
+
+  saveMatchToken(matchId: string, token: string): void {
+    localStorage.setItem(`${MATCH_TOKEN_PREFIX}${matchId}`, token)
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -151,6 +161,10 @@ class ApiClient {
     if (token && !isPublicAuthRequest) {
       headers['Authorization'] = `Token ${token}`
     }
+
+    const matchId = endpoint.match(/^\/api\/matches\/([^/]+)\//)?.[1]
+    const matchToken = matchId ? this.getMatchToken(matchId) : null
+    if (matchToken) headers['Authorization'] = `Match ${matchToken}`
 
     const response = await fetch(joinBaseUrl(getApiBaseUrl(), endpoint), {
       ...options,
@@ -264,7 +278,8 @@ class ApiClient {
   }
 
   createWebSocket(matchId: string): WebSocket {
-    return new WebSocket(joinBaseUrl(getWsBaseUrl(), `/ws/match/${matchId}/`))
+    const token = this.getMatchToken(matchId)
+    return new WebSocket(joinBaseUrl(getWsBaseUrl(), `/ws/match/${matchId}/`), token ? ['royal-chess-match', token] : undefined)
   }
 }
 

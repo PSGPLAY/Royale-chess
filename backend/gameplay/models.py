@@ -1,10 +1,15 @@
 import uuid
+import secrets
 from django.db import models
 from django.contrib.auth.models import User
 
 
 def default_shop_slots():
     return ['p', 'n', 'b']
+
+
+def create_match_access_token():
+    return secrets.token_urlsafe(32)
 
 
 class Match(models.Model):
@@ -36,6 +41,11 @@ class Match(models.Model):
     )
     white_guest_name = models.CharField(max_length=50, blank=True, default='')
     black_guest_name = models.CharField(max_length=50, blank=True, default='')
+
+    # Private bearer credentials for the two players. Never expose these through
+    # MatchSerializer; clients receive only their own seat token at matchmaking.
+    white_access_token = models.CharField(max_length=64, default=create_match_access_token, editable=False)
+    black_access_token = models.CharField(max_length=64, default=create_match_access_token, editable=False)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     

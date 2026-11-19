@@ -4,6 +4,7 @@ Uses python-chess to validate every move, deployment, and purchase.
 The client is NEVER trusted with rule legality or currency transactions.
 """
 
+import logging
 import random
 import chess
 from typing import Tuple, Dict, Any, List
@@ -37,6 +38,16 @@ PIECE_NAMES: Dict[str, str] = {
 
 SHOP_RELOAD_COST = 1
 MATCH_CLOCK_MS = 10 * 60 * 1000
+logger = logging.getLogger(__name__)
+
+
+def _is_square_name(value) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 2
+        and value[0].lower() in 'abcdefgh'
+        and value[1] in '12345678'
+    )
 
 
 def check_match_clock(match, now=None) -> bool:
@@ -150,8 +161,13 @@ def execute_server_move(
     if board.turn != expected_turn:
         return False, "It is not your turn.", {}
 
-    from_square = chess.parse_square(from_sq.lower())
-    to_square = chess.parse_square(to_sq.lower())
+    if not _is_square_name(from_sq) or not _is_square_name(to_sq):
+        return False, 'Squares must be valid chess coordinates.', {}
+
+    from_sq = from_sq.lower()
+    to_sq = to_sq.lower()
+    from_square = chess.parse_square(from_sq)
+    to_square = chess.parse_square(to_sq)
     
     piece = board.piece_at(from_square)
     if not piece:
@@ -177,7 +193,9 @@ def execute_server_move(
             'b': chess.BISHOP,
             'n': chess.KNIGHT,
         }
-        promo_type = promo_map.get(promotion.lower(), chess.QUEEN)
+        if not isinstance(promotion, str) or promotion.lower() not in promo_map:
+            return False, 'Promotion must be queen, rook, bishop, or knight.', {}
+        promo_type = promo_map[promotion.lower()]
 
     move = chess.Move(from_square, to_square, promotion=promo_type)
     if move not in board.legal_moves:
@@ -241,14 +259,31 @@ def execute_server_move(
             match.end_reason = 'Checkmate'
             finalize_match_stats(match)
     elif board.is_stalemate():
-        match.status = 'completed'
-        match.winner = 'draw'
-        match.end_reason = 'Stalemate'
-        finalize_match_stats(match)
+        if is_royale:
+            next_player = match.turn
+            next_slots = match.white_shop_slots if next_player == 'w' else match.black_shop_slots
+            next_coins = match.white_coins if next_player == 'w' else match.black_coins
+            can_spawn = _has_any_legal_spawn(board, next_player, next_slots, next_coins)
+            can_reroll = next_coins >= SHOP_RELOAD_COST
+            if not can_spawn and not can_reroll:
+                match.status = 'completed'
+                match.winner = 'draw'
+                match.end_reason = 'Stalemate'
+                finalize_match_stats(match)
+        else:
+            match.status = 'completed'
+            match.winner = 'draw'
+            match.end_reason = 'Stalemate'
+            finalize_match_stats(match)
     elif not is_royale and board.is_insufficient_material():
         match.status = 'completed'
         match.winner = 'draw'
         match.end_reason = 'Insufficient Material'
+        finalize_match_stats(match)
+    elif not is_royale and board.is_seventyfive_moves():
+        match.status = 'completed'
+        match.winner = 'draw'
+        match.end_reason = '75-Move Rule'
         finalize_match_stats(match)
     elif board.is_fivefold_repetition():
         match.status = 'completed'
@@ -310,8 +345,13 @@ def execute_server_deploy(
     if not match.is_royale_mode:
         return False, "Deployments are only allowed in Royale Mode.", {}
 
+    if player not in ('w', 'b'):
+        return False, 'Invalid player color.', {}
     if match.turn != player:
         return False, "It is not your turn to recruit pieces.", {}
+
+    if not isinstance(piece_type, str) or not _is_square_name(square_name):
+        return False, 'A valid piece type and square are required.', {}
 
     p_type = piece_type.lower()
     cost = PIECE_PRICES.get(p_type)
@@ -526,7 +566,8 @@ def finalize_match_stats(match) -> None:
             prof.save()
 
     except Exception:
-        # Ignore profile update failures (e.g. guest players without profiles)
-        pass
+        # Guest players have no profile; unexpected database failures should be
+        # visible in server logs rather than silently losing match rewards.
+        logger.exception('Failed to finalize match statistics for match %s', match.id)
 
 

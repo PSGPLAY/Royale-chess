@@ -285,13 +285,6 @@ class RoyalModeStore {
   }
 
   /**
-   * Collects a treasure cauldron on the board (deprecated)
-   */
-  collectGoldPot = (_square: SquareName, _collector: PieceColor): boolean => {
-    return false
-  }
-
-  /**
    * Returns cost for a given piece type
    */
   getPieceCost = (type: PieceType): number => {

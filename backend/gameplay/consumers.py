@@ -1,4 +1,5 @@
-import json
+import logging
+import secrets
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from .models import Match, MatchMove
@@ -12,19 +13,26 @@ from .services.chess_rules import (
     check_match_clock,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class MatchConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.match_id = str(self.scope['url_route']['kwargs']['match_id'])
         self.room_group_name = f"match_{self.match_id}"
-        self.player_role = None
+        protocols = self.scope.get('subprotocols', [])
+        self.access_token = protocols[1] if len(protocols) > 1 and protocols[0] == 'royal-chess-match' else ''
+        self.player_role = await self.get_seat_role(self.access_token)
+        if self.player_role is None:
+            await self.close(code=4403)
+            return
 
         # Join match room group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
-        await self.accept()
+        await self.accept('royal-chess-match')
 
         # Send current match state upon connection
         match_data = await self.get_match_data()
@@ -54,6 +62,9 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 )
 
     async def receive_json(self, content):
+        if not isinstance(content, dict):
+            await self.send_json({'type': 'error', 'message': 'Expected a JSON object.'})
+            return
         action = content.get('action')
 
         if action == 'make_move':
@@ -76,7 +87,7 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 await self.send_json({'type': 'error', 'message': msg})
 
         elif action == 'deploy_piece':
-            player = content.get('player')
+            player = self.player_role
             piece_type = content.get('piece_type')
             square = content.get('square')
             success, msg, details = await self.process_deploy(player, piece_type, square)
@@ -95,7 +106,7 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 await self.send_json({'type': 'error', 'message': msg})
 
         elif action == 'reroll_shop':
-            player = content.get('player')
+            player = self.player_role
             success, msg, details = await self.process_reroll(player)
             if success:
                 match_data = await self.get_match_data()
@@ -112,7 +123,7 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 await self.send_json({'type': 'error', 'message': msg})
 
         elif action == 'join_match':
-            self.player_role = content.get('player')
+            return
 
         elif action == 'check_clock':
             match_data = await self.process_clock_check()
@@ -123,7 +134,7 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 )
 
         elif action in ('resign', 'leave'):
-            player = content.get('player') or self.player_role
+            player = self.player_role
             if not player:
                 await self.send_json({'type': 'error', 'message': 'Player identifier missing.'})
                 return
@@ -166,6 +177,16 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
     # ── Database Sync Helpers ────────────────────────────────────────────────
 
     @database_sync_to_async
+    def get_seat_role(self, token):
+        try:
+            match = Match.objects.get(id=self.match_id)
+            if token and secrets.compare_digest(token, match.white_access_token): return 'w'
+            if token and secrets.compare_digest(token, match.black_access_token): return 'b'
+        except Match.DoesNotExist:
+            pass
+        return None
+
+    @database_sync_to_async
     def get_match_data(self):
         try:
             match = Match.objects.get(id=self.match_id)
@@ -188,6 +209,8 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
             match = Match.objects.get(id=self.match_id)
             if match.status != 'active':
                 return False, f"Match is {match.status}.", {}
+            if self.player_role != match.turn:
+                return False, 'It is not your turn.', {}
 
             success, msg, details = execute_server_move(match, from_sq, to_sq, promotion)
             if success:
@@ -204,8 +227,9 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                     fen_after=match.fen,
                 )
             return success, msg, details
-        except Exception as e:
-            return False, str(e), {}
+        except Exception:
+            logger.exception('Unexpected error processing a WebSocket move')
+            return False, 'The move could not be processed.', {}
 
     @database_sync_to_async
     def process_deploy(self, player, piece_type, square):
@@ -213,6 +237,8 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
             match = Match.objects.get(id=self.match_id)
             if match.status != 'active':
                 return False, f"Match is {match.status}.", {}
+            if player != match.turn:
+                return False, 'It is not your turn.', {}
 
             success, msg, details = execute_server_deploy(match, player, piece_type, square)
             if success:
@@ -227,8 +253,9 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                     fen_after=match.fen,
                 )
             return success, msg, details
-        except Exception as e:
-            return False, str(e), {}
+        except Exception:
+            logger.exception('Unexpected error processing a WebSocket deployment')
+            return False, 'The deployment could not be processed.', {}
 
     @database_sync_to_async
     def process_reroll(self, player):
@@ -236,6 +263,8 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
             match = Match.objects.get(id=self.match_id)
             if match.status != 'active':
                 return False, f"Match is {match.status}.", {}
+            if player != match.turn:
+                return False, 'It is not your turn.', {}
 
             success, msg, details = execute_server_reroll(match, player)
             if success:
@@ -249,8 +278,9 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                     fen_after=match.fen,
                 )
             return success, msg, details
-        except Exception as e:
-            return False, str(e), {}
+        except Exception:
+            logger.exception('Unexpected error processing a WebSocket shop reroll')
+            return False, 'The shop reroll could not be processed.', {}
 
     @database_sync_to_async
     def process_resign(self, player):
@@ -271,8 +301,9 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                     fen_after=match.fen,
                 )
             return success, msg, details
-        except Exception as e:
-            return False, str(e), {}
+        except Exception:
+            logger.exception('Unexpected error processing a WebSocket resignation')
+            return False, 'The resignation could not be processed.', {}
 
     @database_sync_to_async
     def process_disconnect_abandon(self, player):
@@ -301,7 +332,7 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 )
                 return MatchSerializer(match).data
         except Exception:
-            pass
+            logger.exception('Unexpected error finalizing a disconnected match')
         return None
 
 

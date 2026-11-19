@@ -72,7 +72,9 @@ export const ProfilePage: FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>(profileTab)
   const [leaderboard, setLeaderboard] = useState<UserProfileData[]>([])
   const [matchHistory, setMatchHistory] = useState<MatchData[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(
+    profileTab === 'leaderboard' || (profileTab === 'history' && isAuthenticated),
+  )
 
   const guestName = getGuestDisplayName()
   const guestSession = getOrCreateGuestSessionId()
@@ -112,9 +114,24 @@ export const ProfilePage: FC = () => {
 
   useEffect(() => {
     if (currentScreen !== 'profile') return
-    if (activeTab === 'leaderboard') fetchLeaderboard()
-    if (activeTab === 'history') fetchHistory()
-  }, [currentScreen, activeTab, fetchLeaderboard, fetchHistory])
+    let isCurrentView = true
+
+    if (activeTab === 'leaderboard') {
+      api.getLeaderboard(50)
+        .then((data) => { if (isCurrentView) setLeaderboard(data) })
+        .catch(() => { if (isCurrentView) setLeaderboard([]) })
+        .finally(() => { if (isCurrentView) setLoading(false) })
+    } else if (activeTab === 'history' && isAuthenticated) {
+      api.getMatchHistory()
+        .then((data) => {
+          if (isCurrentView) setMatchHistory(data.filter((match) => match.status === 'completed').slice(0, 20))
+        })
+        .catch(() => { if (isCurrentView) setMatchHistory([]) })
+        .finally(() => { if (isCurrentView) setLoading(false) })
+    }
+
+    return () => { isCurrentView = false }
+  }, [currentScreen, activeTab, isAuthenticated])
 
   if (currentScreen !== 'profile') return null
 
@@ -222,7 +239,11 @@ export const ProfilePage: FC = () => {
               <button
                 key={tab.id}
                 className={`ppage-sidenav-btn ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => { audioEngine.playButtonClick(); setActiveTab(tab.id) }}
+                onClick={() => {
+                  audioEngine.playButtonClick()
+                  setLoading(tab.id === 'leaderboard' || (tab.id === 'history' && isAuthenticated))
+                  setActiveTab(tab.id)
+                }}
               >
                 {tab.icon}
                 <span>{tab.label}</span>

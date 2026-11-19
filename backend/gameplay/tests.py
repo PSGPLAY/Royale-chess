@@ -3,13 +3,14 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from rest_framework import status
 from .models import Match, MatchMove
-from .services.chess_rules import _has_any_legal_spawn
+from .services.chess_rules import _has_any_legal_spawn, execute_server_move
 import chess
 
 
 class RoyalChessBackendTests(TestCase):
     def setUp(self):
-        self.client = APIClient()
+        # Exercise the HTTPS proxy configuration used by Render in production.
+        self.client = APIClient(HTTP_X_FORWARDED_PROTO='https')
         self.user = User.objects.create_user(
             username='captain_jack', email='jack@sparrow.com', password='securepassword123'
         )
@@ -24,6 +25,14 @@ class RoyalChessBackendTests(TestCase):
         self.assertIn('token', response.data)
         self.assertEqual(response.data['user']['username'], 'blackbeard')
         self.assertEqual(response.data['user']['rating_elo'], 1200)
+
+    def test_auth_registration_rejects_weak_password(self):
+        response = self.client.post('/api/auth/register/', {
+            'username': 'weak_password_user',
+            'email': 'weak@example.com',
+            'password': '123456',
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_auth_login(self):
         response = self.client.post('/api/auth/login/', {
@@ -49,6 +58,7 @@ class RoyalChessBackendTests(TestCase):
         })
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         match_id = response.data['id']
+        self.client.credentials(HTTP_AUTHORIZATION=f"Match {response.data['seat_token']}")
         self.assertEqual(response.data['mode'], 'royale')
         self.assertEqual(response.data['white_coins'], 4)
         self.assertEqual(response.data['black_coins'], 4)
@@ -66,6 +76,7 @@ class RoyalChessBackendTests(TestCase):
             white_coins=4,
             white_shop_slots=['p', 'n', 'b'],
         )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Match {match.white_access_token}')
 
         # Deploy pawn on e2 (costs 1 coin)
         response = self.client.post(f'/api/matches/{match.id}/deploy/', {
@@ -126,6 +137,7 @@ class RoyalChessBackendTests(TestCase):
             white_coins=4,
             white_shop_slots=['p', 'p', 'p'],
         )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Match {match.white_access_token}')
 
         response = self.client.post(f'/api/matches/{match.id}/reroll/', {
             'player': 'w',
@@ -142,6 +154,7 @@ class RoyalChessBackendTests(TestCase):
             fen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
             turn='w',
         )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Match {match.white_access_token}')
 
         # Move e2 to e4
         response = self.client.post(f'/api/matches/{match.id}/move/', {
@@ -153,6 +166,35 @@ class RoyalChessBackendTests(TestCase):
         self.assertEqual(match.turn, 'b')
         self.assertIn('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR', match.fen)
 
+    def test_invalid_move_coordinates_return_validation_error(self):
+        match = Match.objects.create(
+            mode='normal',
+            fen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+            turn='w',
+        )
+        success, message, _ = execute_server_move(match, 'invalid', 'e4')
+        self.assertFalse(success)
+        self.assertIn('valid chess coordinates', message)
+
+    def test_royale_stalemate_remains_playable_with_shop_options(self):
+        match = Match.objects.create(
+            mode='royale',
+            fen='7k/5K2/8/6Q1/8/8/8/8 w - - 0 1',
+            turn='w',
+            white_coins=4,
+            black_coins=4,
+            white_shop_slots=['p', 'n', 'b'],
+            black_shop_slots=['p', 'n', 'b'],
+            status='active',
+        )
+
+        success, _, _ = execute_server_move(match, 'g5', 'g6')
+        match.refresh_from_db()
+
+        self.assertTrue(success)
+        self.assertEqual(match.status, 'active')
+        self.assertEqual(match.turn, 'b')
+
     def test_quick_matchmaking_flow(self):
         user2 = User.objects.create_user(username='admiral_nelson', password='password123')
 
@@ -163,6 +205,7 @@ class RoyalChessBackendTests(TestCase):
         self.assertEqual(res1.data['status'], 'waiting')
         self.assertEqual(res1.data['role'], 'w')
         match_id = res1.data['match']['id']
+        creator_token = res1.data['seat_token']
 
         # Player 2 searches for match -> paired immediately
         self.client.force_authenticate(user=user2)
@@ -174,6 +217,7 @@ class RoyalChessBackendTests(TestCase):
         p1_role = 'b' if p2_role == 'w' else 'w'
         self.assertEqual(res2.data['match']['id'], match_id)
         self.assertEqual(res2.data['match']['status'], 'active')
+        self.client.credentials(HTTP_AUTHORIZATION=f"Match {res2.data['seat_token']}")
 
         # Player 2 resigns
         res_resign = self.client.post(f'/api/matches/{match_id}/resign/', {'player': p2_role})

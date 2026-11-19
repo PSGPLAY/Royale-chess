@@ -85,6 +85,7 @@ class MultiplayerStore {
       const guestName = user ? '' : getGuestDisplayName()
 
       const result = await api.matchmake(mode, guestName)
+      api.saveMatchToken(result.match.id, result.seat_token)
 
       this.setState({
         activeMatch: result.match,

@@ -88,11 +88,11 @@ class CreateMatchSerializer(serializers.Serializer):
     play_as = serializers.ChoiceField(
         choices=['w', 'b', 'random'], default='w', required=False
     )
-    guest_name = serializers.CharField(required=False, allow_blank=True, default='')
+    guest_name = serializers.CharField(required=False, allow_blank=True, max_length=50, default='')
 
 
 class MatchmakeSerializer(serializers.Serializer):
     mode = serializers.ChoiceField(
         choices=Match.MODE_CHOICES, default='royale'
     )
-    guest_name = serializers.CharField(required=False, allow_blank=True, default='')
+    guest_name = serializers.CharField(required=False, allow_blank=True, max_length=50, default='')

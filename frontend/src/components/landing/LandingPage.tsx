@@ -27,7 +27,7 @@ export const LandingPage: FC = () => {
     navigationStore.launchGame(modeId)
   }
 
-  const handleStartOnline = (_mode?: string) => {
+  const handleStartOnline = () => {
     audioEngine.playButtonClick()
     setIsOnlineModalOpen(true)
   }
@@ -131,7 +131,7 @@ export const LandingPage: FC = () => {
             <div className="hero-cta-group">
               <button
                 className="btn-hero-primary"
-                onClick={() => handleStartOnline('royale')}
+                onClick={handleStartOnline}
               >
                 <Globe size={20} />
                 <span>Find Online Match</span>
@@ -187,7 +187,7 @@ export const LandingPage: FC = () => {
             {/* 1. Quick Online Matchmaking (Featured Card) */}
             <div
               className="mode-card featured-online"
-              onClick={() => handleStartOnline('royale')}
+              onClick={handleStartOnline}
             >
               <div className="card-top">
                 <div className="mode-badge online-badge">MULTIPLAYER</div>

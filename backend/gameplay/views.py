@@ -1,4 +1,5 @@
 import random
+import secrets
 from datetime import timedelta
 from rest_framework import status
 from rest_framework.views import APIView
@@ -18,6 +19,32 @@ from .services.chess_rules import (
     execute_server_resign,
     roll_shop_slots,
 )
+
+
+def seat_role(request, match):
+    scheme, _, token = request.META.get('HTTP_AUTHORIZATION', '').partition(' ')
+    if scheme.lower() == 'match' and token:
+        if secrets.compare_digest(token, match.white_access_token): return 'w'
+        if secrets.compare_digest(token, match.black_access_token): return 'b'
+    return None
+
+
+def seat_denied():
+    return Response({'error': 'A valid match seat credential is required.'}, status=status.HTTP_403_FORBIDDEN)
+
+
+class MatchSeatAPIView(APIView):
+    """Require proof of one of the two private match seats for match access."""
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        match_id = kwargs.get('match_id')
+        if match_id:
+            match = get_object_or_404(Match, id=match_id)
+            role = seat_role(request, match)
+            if role is None:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('A valid match seat credential is required.')
+            request.match_seat_role = role
 
 
 class MatchmakeView(APIView):
@@ -74,6 +101,8 @@ class MatchmakeView(APIView):
                 p1_role = 'w'
                 p2_role = 'b'
             else:
+                # Keep credentials attached to their original player as colors swap.
+                matched.white_access_token, matched.black_access_token = matched.black_access_token, matched.white_access_token
                 matched.white_player = p2_user
                 matched.white_guest_name = p2_guest
                 matched.black_player = p1_user
@@ -102,6 +131,7 @@ class MatchmakeView(APIView):
                 'status': 'connected',
                 'role': p2_role,
                 'match': MatchSerializer(matched).data,
+                'seat_token': matched.black_access_token if p2_role == 'b' else matched.white_access_token,
                 'message': 'Connected to opponent!',
             }, status=status.HTTP_200_OK)
 
@@ -130,11 +160,12 @@ class MatchmakeView(APIView):
             'status': 'waiting',
             'role': 'w',
             'match': MatchSerializer(match).data,
+            'seat_token': match.white_access_token,
             'message': 'Searching for an opponent...',
         }, status=status.HTTP_201_CREATED)
 
 
-class CancelMatchmakingView(APIView):
+class CancelMatchmakingView(MatchSeatAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, match_id):
@@ -185,10 +216,10 @@ class CreateMatchView(APIView):
             clock_started_at=timezone.now(),
         )
 
-        return Response(MatchSerializer(match).data, status=status.HTTP_201_CREATED)
+        return Response({**MatchSerializer(match).data, 'seat_token': match.white_access_token if play_as == 'w' else match.black_access_token}, status=status.HTTP_201_CREATED)
 
 
-class MatchDetailView(APIView):
+class MatchDetailView(MatchSeatAPIView):
     permission_classes = [AllowAny]
 
     def get(self, request, match_id):
@@ -196,7 +227,7 @@ class MatchDetailView(APIView):
         return Response(MatchSerializer(match).data)
 
 
-class CheckMatchClockView(APIView):
+class CheckMatchClockView(MatchSeatAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, match_id):
@@ -214,17 +245,21 @@ class CheckMatchClockView(APIView):
         return Response(MatchSerializer(match).data)
 
 
-class SubmitMoveView(APIView):
+class SubmitMoveView(MatchSeatAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, match_id):
         match = get_object_or_404(Match, id=match_id)
+        if request.match_seat_role != match.turn:
+            return Response({'error': 'It is not your turn.'}, status=status.HTTP_403_FORBIDDEN)
         if match.status != 'active':
             return Response(
                 {'error': f'Match is already {match.status}.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if not hasattr(request.data, 'get'):
+            return Response({'error': 'Expected a JSON object.'}, status=status.HTTP_400_BAD_REQUEST)
         from_square = request.data.get('from')
         to_square = request.data.get('to')
         promotion = request.data.get('promotion', 'q')
@@ -277,7 +312,7 @@ class SubmitMoveView(APIView):
         })
 
 
-class DeployPieceView(APIView):
+class DeployPieceView(MatchSeatAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, match_id):
@@ -288,7 +323,9 @@ class DeployPieceView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        player = request.data.get('player', match.turn)
+        if not hasattr(request.data, 'get'):
+            return Response({'error': 'Expected a JSON object.'}, status=status.HTTP_400_BAD_REQUEST)
+        player = request.match_seat_role
         piece_type = request.data.get('piece_type')
         square = request.data.get('square')
 
@@ -337,7 +374,7 @@ class DeployPieceView(APIView):
         })
 
 
-class RerollShopView(APIView):
+class RerollShopView(MatchSeatAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, match_id):
@@ -348,7 +385,9 @@ class RerollShopView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        player = request.data.get('player', match.turn)
+        if not hasattr(request.data, 'get'):
+            return Response({'error': 'Expected a JSON object.'}, status=status.HTTP_400_BAD_REQUEST)
+        player = request.match_seat_role
         success, msg, details = execute_server_reroll(match, player)
         if not success:
             return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
@@ -385,17 +424,14 @@ class RerollShopView(APIView):
         })
 
 
-class ResignMatchView(APIView):
+class ResignMatchView(MatchSeatAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request, match_id):
         match = get_object_or_404(Match, id=match_id)
-        player = request.data.get('player')
-        if not player and request.user.is_authenticated:
-            if match.white_player == request.user:
-                player = 'w'
-            elif match.black_player == request.user:
-                player = 'b'
+        if not hasattr(request.data, 'get'):
+            return Response({'error': 'Expected a JSON object.'}, status=status.HTTP_400_BAD_REQUEST)
+        player = request.match_seat_role
 
         if player not in ('w', 'b'):
             return Response({'error': 'Player color ("w" or "b") is required.'}, status=status.HTTP_400_BAD_REQUEST)
