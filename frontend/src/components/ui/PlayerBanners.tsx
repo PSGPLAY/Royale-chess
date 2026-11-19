@@ -127,6 +127,7 @@ export const PlayerBanners: FC = () => {
         )}
       </div>
 
+
       {/* ── Bottom Player Banner: Current Player (You) ── */}
       <div className={`player-banner player-banner-bottom ${myColor === 'w' ? 'banner-blue' : 'banner-red'} ${isMyTurn ? 'active-turn' : ''}`}>
         <div className="banner-avatar-wrap">
