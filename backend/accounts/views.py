@@ -92,6 +92,17 @@ class ProfileView(APIView):
         serializer = PlayerProfileSerializer(get_or_create_profile(request.user))
         return Response(serializer.data)
 
+
+class PublicProfileView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        try:
+            profile = PlayerProfile.objects.select_related('user').get(user__username__iexact=username)
+        except PlayerProfile.DoesNotExist:
+            return Response({'error': 'Player not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PlayerProfileSerializer(profile).data)
+
     def patch(self, request):
         if not hasattr(request.data, 'get'):
             return Response({'error': 'Expected a JSON object.'}, status=status.HTTP_400_BAD_REQUEST)

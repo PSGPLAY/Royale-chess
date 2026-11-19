@@ -145,23 +145,14 @@ const FLEET_ALLIES = [
 
 export const ProfilePage: FC = () => {
   const { user, isAuthenticated } = useAuthStore()
-  const { currentScreen } = useNavigationStore()
+  const { currentScreen, profileTab, profileUsername } = useNavigationStore()
+  const [viewedProfile, setViewedProfile] = useState<UserProfileData | null>(null)
   const [matchHistory, setMatchHistory] = useState<MatchData[]>([])
   const [leaderboard, setLeaderboard] = useState<UserProfileData[]>([])
-  const [showRankingsModal, setShowRankingsModal] = useState(false)
+  const [showRankingsModal, setShowRankingsModal] = useState(profileTab === 'leaderboard')
   const [activeHistoryFilter, setActiveHistoryFilter] = useState<'all' | 'royale' | 'classic' | 'tournaments'>('all')
   const [activeAnalyticsFilter, setActiveAnalyticsFilter] = useState<'30D' | '90D' | '1Y' | 'ALL'>('90D')
   const [avatarLoadError, setAvatarLoadError] = useState(false)
-
-  // Fetch real match history if logged in
-  useEffect(() => {
-    if (currentScreen !== 'profile') return
-    if (isAuthenticated) {
-      api.getMatchHistory()
-        .then((data) => setMatchHistory(data.filter((m) => m.status === 'completed').slice(0, 15)))
-        .catch(() => setMatchHistory([]))
-    }
-  }, [currentScreen, isAuthenticated])
 
   const fetchRankings = useCallback(() => {
     api.getLeaderboard(20)
@@ -169,23 +160,47 @@ export const ProfilePage: FC = () => {
       .catch(() => setLeaderboard([]))
   }, [])
 
+  useEffect(() => {
+    if (profileTab === 'leaderboard') {
+      fetchRankings()
+      setShowRankingsModal(true)
+    } else {
+      setShowRankingsModal(false)
+    }
+  }, [profileTab, fetchRankings])
+
+  // Fetch real match history if logged in
+  useEffect(() => {
+    if (currentScreen !== 'profile') return
+    if (profileUsername) {
+      api.getPublicProfile(profileUsername).then(setViewedProfile).catch(() => setViewedProfile(null))
+      return
+    }
+    setViewedProfile(user)
+    if (isAuthenticated && user) {
+      api.getMatchHistory()
+        .then((data) => setMatchHistory(data.filter((m) => m.status === 'completed').slice(0, 15)))
+        .catch(() => setMatchHistory([]))
+    }
+  }, [currentScreen, isAuthenticated, profileUsername, user])
+
   if (currentScreen !== 'profile') return null
 
   // User Stats & Identity
-  const displayName = user ? (user.nickname || user.username) : getGuestDisplayName()
-  const normalElo = user?.normal_rating ?? 1180
-  const royaleElo = user?.royale_rating ?? 1238
-  const totalBattles = user?.total_matches ? user.total_matches : 203
-  const wins = user?.total_matches ? user.wins : 127
-  const draws = user?.total_matches ? user.draws : 17
-  const losses = user?.total_matches ? user.losses : 59
-  const winRate = user?.total_matches
-    ? Number(user.win_rate.toFixed(1))
-    : Number(((wins / totalBattles) * 100).toFixed(1))
-  const coins = user?.persistent_coins ?? 155
-  const joinedDate = user?.created_at
-    ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : 'Oct 2023'
+  const profile = viewedProfile
+  const isOwnProfile = !profileUsername || Boolean(user && profile && user.id === profile.id)
+  const displayName = profile ? (profile.nickname || profile.username) : profileUsername || getGuestDisplayName()
+  const normalElo = profile?.normal_rating ?? 0
+  const royaleElo = profile?.royale_rating ?? 0
+  const totalBattles = profile?.total_matches ?? 0
+  const wins = profile?.wins ?? 0
+  const draws = profile?.draws ?? 0
+  const losses = profile?.losses ?? 0
+  const winRate = profile?.win_rate ?? 0
+  const coins = isOwnProfile ? (profile?.persistent_coins ?? 0) : 0
+  const joinedDate = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : '—'
 
   // Win, Draw, Loss percentages
   const wPct = Math.round((wins / totalBattles) * 100)
@@ -263,7 +278,7 @@ export const ProfilePage: FC = () => {
             className="nav-item nav-item-rankings active"
             onClick={() => {
               fetchRankings()
-              setShowRankingsModal(true)
+              navigationStore.openProfilePage('leaderboard')
             }}
           >
             <Trophy size={14} />
@@ -371,7 +386,7 @@ export const ProfilePage: FC = () => {
             <div className="rc-hero-bio-section">
               <div className="rc-hero-name-heading">
                 <h1 className="rc-hero-username">{displayName}</h1>
-                <span className="rc-hero-title-tag">GRANDMASTER • FLEET ADMIRAL II</span>
+              <span className="rc-hero-title-tag">{normalElo + royaleElo > 0 ? 'RANKED PLAYER' : 'NEW PLAYER'}</span>
               </div>
 
               <div className="rc-hero-region">
@@ -390,9 +405,7 @@ export const ProfilePage: FC = () => {
                 <span className="rc-hero-meta-item">
                   <Eye size={13} /> 12.4k Views
                 </span>
-                <span className="rc-hero-meta-item rc-meta-gold">
-                  <Trophy size={13} /> Rank #1,420 Global
-                </span>
+                <span className="rc-hero-meta-item rc-meta-gold"><Trophy size={13} /> Normal #{profile?.normal_global_rank ?? '—'} · Royale #{profile?.royale_global_rank ?? '—'}</span>
               </div>
             </div>
 
@@ -406,10 +419,7 @@ export const ProfilePage: FC = () => {
                   <Swords size={16} />
                   <span>Challenge to Duel</span>
                 </button>
-                <button className="rc-btn-secondary">
-                  <UserPlus size={15} />
-                  <span>Add Friend</span>
-                </button>
+                {!isOwnProfile && user && <button className="rc-btn-secondary"><UserPlus size={15} /><span>Add Friend</span></button>}
                 <button className="rc-btn-secondary">
                   <MessageSquare size={15} />
                   <span>Message</span>
@@ -883,7 +893,7 @@ export const ProfilePage: FC = () => {
                   className="rc-view-logbook-btn"
                   onClick={() => {
                     fetchRankings()
-                    setShowRankingsModal(true)
+                    navigationStore.openProfilePage('leaderboard')
                   }}
                 >
                   View Full Logbook &amp; PGN Vault ({totalBattles} Battles) &gt;
@@ -1050,7 +1060,13 @@ export const ProfilePage: FC = () => {
 
       {/* ═══════════════ 6. HIGH SEAS RANKINGS MODAL ═══════════════════════ */}
       {showRankingsModal && (
-        <div className="rc-modal-backdrop" onClick={() => setShowRankingsModal(false)}>
+        <div
+          className="rc-modal-backdrop"
+          onClick={() => {
+            setShowRankingsModal(false)
+            navigationStore.openProfilePage('overview')
+          }}
+        >
           <div className="rc-rankings-modal-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="rc-modal-header">
               <div className="rc-modal-title">
@@ -1059,7 +1075,10 @@ export const ProfilePage: FC = () => {
               </div>
               <button
                 className="rc-modal-close-btn"
-                onClick={() => setShowRankingsModal(false)}
+                onClick={() => {
+                  setShowRankingsModal(false)
+                  navigationStore.openProfilePage('overview')
+                }}
               >
                 ✕
               </button>

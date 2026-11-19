@@ -66,7 +66,7 @@ export const LandingPage: FC = () => {
           {isAuthenticated && user ? (
             <div
               className="nav-profile-pill"
-              onClick={() => navigationStore.openProfilePage()}
+              onClick={() => navigationStore.openProfilePage('overview', user.username)}
               title="View Commander Profile & Rankings"
             >
               <div className="nav-avatar">🏴‍☠️</div>

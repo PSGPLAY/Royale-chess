@@ -215,6 +215,10 @@ class ApiClient {
     return this.request<UserProfileData>('/api/auth/profile/')
   }
 
+  async getPublicProfile(username: string): Promise<UserProfileData> {
+    return this.request<UserProfileData>(`/api/auth/players/${encodeURIComponent(username)}/`)
+  }
+
   async updateProfile(updates: { nickname?: string; avatar?: string }): Promise<UserProfileData> {
     return this.request<UserProfileData>('/api/auth/profile/', {
       method: 'PATCH',
