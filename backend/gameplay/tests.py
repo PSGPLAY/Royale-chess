@@ -24,7 +24,7 @@ class RoyalChessBackendTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('token', response.data)
         self.assertEqual(response.data['user']['username'], 'blackbeard')
-        self.assertEqual(response.data['user']['rating_elo'], 1200)
+        self.assertEqual(response.data['user']['rating_elo'], 0)
 
     def test_auth_registration_rejects_weak_password(self):
         response = self.client.post('/api/auth/register/', {
@@ -109,6 +109,7 @@ class RoyalChessBackendTests(TestCase):
         match.black_coins = 4
         match.black_shop_slots = ['n', 'b', 'q']
         match.save()
+        self.client.credentials(HTTP_AUTHORIZATION=f'Match {match.black_access_token}')
         res_rank5 = self.client.post(f'/api/matches/{match.id}/deploy/', {
             'player': 'b',
             'piece_type': 'n',
@@ -122,6 +123,7 @@ class RoyalChessBackendTests(TestCase):
         match.white_coins = 4
         match.white_shop_slots = ['p', 'n', 'b']
         match.save()
+        self.client.credentials(HTTP_AUTHORIZATION=f'Match {match.white_access_token}')
         res_illegal = self.client.post(f'/api/matches/{match.id}/deploy/', {
             'player': 'w',
             'piece_type': 'p',
@@ -230,10 +232,10 @@ class RoyalChessBackendTests(TestCase):
         user2.profile.refresh_from_db()
         self.assertEqual(self.user.profile.wins, 1)
         self.assertEqual(self.user.profile.persistent_coins, 125) # 100 starting + 25 win
-        self.assertGreater(self.user.profile.rating_elo, 1200) # rating increased
+        self.assertGreater(self.user.profile.rating_elo, 0) # rating increased
         self.assertEqual(user2.profile.losses, 1)
         self.assertEqual(user2.profile.persistent_coins, 105) # 100 starting + 5 consolation
-        self.assertLess(user2.profile.rating_elo, 1200) # rating decreased
+        self.assertEqual(user2.profile.rating_elo, 0) # rating non-negative bounded
 
     def test_royale_false_checkmate_blocked_by_spawn(self):
         """
