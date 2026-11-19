@@ -192,9 +192,33 @@ export const ProfilePage: FC = () => {
       .catch(() => {})
   }, [isAuthenticated])
 
+  // Initial load
   useEffect(() => {
     loadFriends()
   }, [loadFriends])
+
+  // 2b. Real-time polling: check for new friend requests every 15 seconds
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const interval = setInterval(() => {
+      api.getFriends()
+        .then((freshData) => {
+          setFriendsData((prev) => {
+            // Check if there are new incoming requests
+            const prevIds = new Set(prev.received_requests.map((r) => r.id))
+            const newRequests = freshData.received_requests.filter((r) => !prevIds.has(r.id))
+            if (newRequests.length > 0) {
+              const names = newRequests.map((r) => r.sender_nickname || r.sender_username).join(', ')
+              setFriendActionMsg(`📨 New friend request from ${names}!`)
+              setTimeout(() => setFriendActionMsg(null), 6000)
+            }
+            return freshData
+          })
+        })
+        .catch(() => {})
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [isAuthenticated])
 
   // 3. Search for players
   const handleSearch = useCallback((q: string) => {
