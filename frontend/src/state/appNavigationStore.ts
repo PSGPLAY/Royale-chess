@@ -11,7 +11,7 @@ export interface NavigationState {
   currentScreen: AppScreen
   activeModeId: GameModeId
   profileTab: ProfileTab
-  profileUsername: string | null
+  viewingUsername?: string
 }
 
 type Listener = () => void
@@ -25,6 +25,24 @@ const VALID_MODES: GameModeId[] = [
   'blind',
 ]
 
+const RESERVED_ROUTES = new Set([
+  '',
+  'home',
+  'landing',
+  'game',
+  'play',
+  'profile',
+  'rankings',
+  'leaderboard',
+  'armory',
+  'modes',
+  'watch',
+  'api',
+  'static',
+  'assets',
+  'favicon.ico',
+])
+
 /**
  * Parses the current browser URL pathname into NavigationState
  */
@@ -34,13 +52,13 @@ export function parseUrlToState(): NavigationState {
       currentScreen: 'landing',
       activeModeId: 'royale',
       profileTab: 'overview',
-      profileUsername: null,
     }
   }
 
   const rawPath = window.location.pathname.trim()
   const path = rawPath.replace(/\/+$/, '') || '/'
   const lowerPath = path.toLowerCase()
+  const parts = path.split('/').filter(Boolean)
 
   // 1. Rankings / Leaderboard direct shortcuts
   if (
@@ -53,56 +71,69 @@ export function parseUrlToState(): NavigationState {
       currentScreen: 'profile',
       activeModeId: 'royale',
       profileTab: 'leaderboard',
-      profileUsername: null,
     }
   }
 
-  // 2. Profile routes
+  // 2. Profile routes: /profile, /profile/history, /profile/:username
   if (lowerPath.startsWith('/profile')) {
-    const parts = lowerPath.split('/').filter(Boolean)
-    const subTab = parts[1]
-    let profileTab: ProfileTab = 'overview'
-    if (subTab === 'history' || subTab === 'matches') {
-      profileTab = 'history'
-    } else if (subTab === 'leaderboard' || subTab === 'rankings') {
-      profileTab = 'leaderboard'
+    const sub = parts[1]
+    if (sub) {
+      const lowerSub = sub.toLowerCase()
+      if (lowerSub === 'history' || lowerSub === 'matches') {
+        return {
+          currentScreen: 'profile',
+          activeModeId: 'royale',
+          profileTab: 'history',
+        }
+      }
+      if (lowerSub === 'leaderboard' || lowerSub === 'rankings') {
+        return {
+          currentScreen: 'profile',
+          activeModeId: 'royale',
+          profileTab: 'leaderboard',
+        }
+      }
+      // Viewing a specific username under /profile/:username
+      return {
+        currentScreen: 'profile',
+        activeModeId: 'royale',
+        profileTab: 'overview',
+        viewingUsername: sub,
+      }
     }
     return {
       currentScreen: 'profile',
       activeModeId: 'royale',
-      profileTab,
-      profileUsername: null,
+      profileTab: 'overview',
     }
   }
 
-  const profileMatch = path.match(/^\/([a-zA-Z0-9_.-]+)$/)
-  if (profileMatch && !['home', 'game', 'play', 'rankings', 'leaderboard'].includes(profileMatch[1].toLowerCase())) {
-    return { currentScreen: 'profile', activeModeId: 'royale', profileTab: 'overview', profileUsername: decodeURIComponent(profileMatch[1]) }
-  }
-  const namedProfileHistory = path.match(/^\/([a-zA-Z0-9_.-]+)\/(history|matches)$/i)
-  if (namedProfileHistory) {
-    return { currentScreen: 'profile', activeModeId: 'royale', profileTab: 'history', profileUsername: decodeURIComponent(namedProfileHistory[1]) }
-  }
-
   // 3. Game routes: /game, /game/royale, /game/normal, /game/pvp_royale, etc.
-  if (path.startsWith('/game') || path.startsWith('/play')) {
-    const parts = path.split('/').filter(Boolean)
+  if (lowerPath.startsWith('/game') || lowerPath.startsWith('/play')) {
     const modePart = parts[1] as GameModeId | undefined
     const activeModeId = modePart && VALID_MODES.includes(modePart) ? modePart : 'royale'
     return {
       currentScreen: 'game',
       activeModeId,
       profileTab: 'overview',
-      profileUsername: null,
     }
   }
 
-  // 4. Default to landing page (/, /home, etc.)
+  // 4. Custom user profile route: /:username (e.g. royalechess.com/pp)
+  if (parts.length === 1 && !RESERVED_ROUTES.has(parts[0].toLowerCase())) {
+    return {
+      currentScreen: 'profile',
+      activeModeId: 'royale',
+      profileTab: 'overview',
+      viewingUsername: parts[0],
+    }
+  }
+
+  // 5. Default to landing page
   return {
     currentScreen: 'landing',
     activeModeId: 'royale',
     profileTab: 'overview',
-    profileUsername: null,
   }
 }
 
@@ -110,14 +141,16 @@ export function parseUrlToState(): NavigationState {
  * Returns the canonical URL path for a given NavigationState
  */
 export function getPathFromState(state: NavigationState): string {
+  if (state.viewingUsername) {
+    return `/${state.viewingUsername}`
+  }
   if (state.currentScreen === 'game') {
     return `/game/${state.activeModeId}`
   }
   if (state.currentScreen === 'profile') {
     if (state.profileTab === 'leaderboard') return '/rankings'
-    const base = state.profileUsername ? `/${encodeURIComponent(state.profileUsername)}` : '/profile'
-    if (state.profileTab === 'history') return `${base}/history`
-    return base
+    if (state.profileTab === 'history') return '/profile/history'
+    return '/profile'
   }
   return '/'
 }
@@ -139,15 +172,12 @@ class NavigationStore {
   private listeners = new Set<Listener>()
 
   constructor() {
-    // 1. Initialize state from current URL
     this.state = parseUrlToState()
 
-    // 2. If user loaded directly into a game URL, initialize game state
     if (this.state.currentScreen === 'game') {
       initGameMode(this.state.activeModeId)
     }
 
-    // 3. Listen to browser Back/Forward popstate events
     if (typeof window !== 'undefined') {
       window.addEventListener('popstate', this.handlePopState)
     }
@@ -202,33 +232,52 @@ class NavigationStore {
     this.updateStateAndUrl({
       currentScreen: 'game',
       activeModeId: modeId,
+      viewingUsername: undefined,
     })
   }
 
   /**
    * Switches to the game screen for an online match without resetting server state
-   * Updates URL to /game/royale or /game/normal
    */
   launchOnlineMatch = (isRoyale: boolean) => {
     royalModeStore.setGameMode(isRoyale ? 'royal' : 'classic')
     this.updateStateAndUrl({
       currentScreen: 'game',
       activeModeId: isRoyale ? 'royale' : 'normal',
+      viewingUsername: undefined,
     })
   }
 
   /**
-   * Opens profile page with the specified tab and updates URL to /profile or /rankings
+   * Opens profile page with the specified tab and updates URL to /profile or /rankings or /:username
    */
-  openProfilePage = (profileTab: ProfileTab = 'overview', profileUsername: string | null = null) => {
-    this.updateStateAndUrl({ currentScreen: 'profile', profileTab, profileUsername })
+  openProfilePage = (profileTab: ProfileTab = 'overview', viewingUsername?: string) => {
+    this.updateStateAndUrl({
+      currentScreen: 'profile',
+      profileTab,
+      viewingUsername,
+    })
+  }
+
+  /**
+   * Opens a specific user's public profile by username: /:username
+   */
+  openUserProfile = (username: string) => {
+    this.updateStateAndUrl({
+      currentScreen: 'profile',
+      profileTab: 'overview',
+      viewingUsername: username,
+    })
   }
 
   /**
    * Returns to the landing page / main menu and updates URL to /
    */
   returnToLanding = () => {
-    this.updateStateAndUrl({ currentScreen: 'landing' })
+    this.updateStateAndUrl({
+      currentScreen: 'landing',
+      viewingUsername: undefined,
+    })
   }
 }
 

@@ -5,8 +5,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import PlayerProfile
-from .serializers import RegisterSerializer, PlayerProfileSerializer, LeaderboardSerializer
+from django.db.models import Q
+from .models import PlayerProfile, FriendRequest
+from .serializers import (
+    RegisterSerializer,
+    PlayerProfileSerializer,
+    LeaderboardSerializer,
+    PlayerSearchSerializer,
+    FriendRequestSerializer,
+)
 
 
 def get_or_create_profile(user):
@@ -132,3 +139,162 @@ class LeaderboardView(APIView):
         top_players = PlayerProfile.objects.order_by('-rating_elo')[:limit]
         serializer = LeaderboardSerializer(top_players, many=True)
         return Response(serializer.data)
+
+
+class PlayerSearchView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        query = str(request.query_params.get('q', '')).strip()
+        if not query:
+            return Response([])
+
+        profiles = PlayerProfile.objects.select_related('user').filter(
+            Q(user__username__icontains=query) | Q(nickname__icontains=query)
+        ).distinct()[:15]
+
+        serializer = PlayerSearchSerializer(profiles, many=True)
+        return Response(serializer.data)
+
+
+class FriendListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # 1. Accepted friend requests
+        accepted_reqs = FriendRequest.objects.filter(
+            Q(sender=user) | Q(receiver=user),
+            status='accepted'
+        ).select_related('sender__profile', 'receiver__profile')
+
+        friend_profiles = []
+        for req in accepted_reqs:
+            friend_user = req.receiver if req.sender == user else req.sender
+            friend_profiles.append(PlayerProfileSerializer(friend_user.profile).data)
+
+        # 2. Received pending requests
+        received_reqs = FriendRequest.objects.filter(
+            receiver=user,
+            status='pending'
+        ).select_related('sender__profile')
+
+        # 3. Sent pending requests
+        sent_reqs = FriendRequest.objects.filter(
+            sender=user,
+            status='pending'
+        ).select_related('receiver__profile')
+
+        return Response({
+            'friends': friend_profiles,
+            'received_requests': FriendRequestSerializer(received_reqs, many=True).data,
+            'sent_requests': FriendRequestSerializer(sent_reqs, many=True).data,
+        })
+
+
+class SendFriendRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        target_username = str(request.data.get('username', '')).strip()
+        if not target_username:
+            return Response({'error': 'Target username is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if target_username.lower() == request.user.username.lower():
+            return Response({'error': 'You cannot send a friend request to yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            target_user = User.objects.get(username__iexact=target_username)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check existing request in either direction
+        existing = FriendRequest.objects.filter(
+            Q(sender=request.user, receiver=target_user) |
+            Q(sender=target_user, receiver=request.user)
+        ).first()
+
+        if existing:
+            if existing.status == 'accepted':
+                return Response({'message': 'You are already allies with this commander.', 'status': 'friends'})
+            if existing.sender == target_user and existing.status == 'pending':
+                # Target already sent request to us -> automatically accept it!
+                existing.status = 'accepted'
+                existing.save()
+                return Response({'message': 'Friend request accepted! You are now allies.', 'status': 'friends'})
+            if existing.sender == request.user and existing.status == 'pending':
+                return Response({'message': 'Friend request already pending.', 'status': 'pending_sent'})
+            # If rejected previously, allow re-requesting
+            existing.sender = request.user
+            existing.receiver = target_user
+            existing.status = 'pending'
+            existing.save()
+            return Response({'message': 'Friend request sent!', 'status': 'pending_sent'})
+
+        new_req = FriendRequest.objects.create(
+            sender=request.user,
+            receiver=target_user,
+            status='pending'
+        )
+        return Response({
+            'message': 'Friend request sent successfully!',
+            'status': 'pending_sent',
+            'request': FriendRequestSerializer(new_req).data
+        }, status=status.HTTP_201_CREATED)
+
+
+class RespondFriendRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, request_id):
+        action = str(request.data.get('action', '')).strip().lower()
+        if action not in ('accept', 'reject'):
+            return Response({'error': 'Action must be "accept" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            req = FriendRequest.objects.get(id=request_id, receiver=request.user)
+        except FriendRequest.DoesNotExist:
+            return Response({'error': 'Friend request not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        req.status = 'accepted' if action == 'accept' else 'rejected'
+        req.save()
+
+        return Response({
+            'message': f'Friend request {req.status}.',
+            'status': req.status
+        })
+
+
+class FriendshipStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        if not request.user.is_authenticated:
+            return Response({'status': 'none'})
+
+        target_username = username.strip()
+        if target_username.lower() == request.user.username.lower():
+            return Response({'status': 'self'})
+
+        try:
+            target_user = User.objects.get(username__iexact=target_username)
+        except User.DoesNotExist:
+            return Response({'status': 'none'})
+
+        existing = FriendRequest.objects.filter(
+            Q(sender=request.user, receiver=target_user) |
+            Q(sender=target_user, receiver=request.user)
+        ).first()
+
+        if not existing or existing.status == 'rejected':
+            return Response({'status': 'none'})
+
+        if existing.status == 'accepted':
+            return Response({'status': 'friends', 'request_id': existing.id})
+
+        if existing.sender == request.user:
+            return Response({'status': 'pending_sent', 'request_id': existing.id})
+
+        return Response({'status': 'pending_received', 'request_id': existing.id})
+

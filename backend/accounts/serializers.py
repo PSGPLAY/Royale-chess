@@ -85,3 +85,57 @@ class LeaderboardSerializer(serializers.ModelSerializer):
             'win_rate',
         ]
 
+
+class PlayerSearchSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    win_rate = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = PlayerProfile
+        fields = [
+            'id',
+            'username',
+            'nickname',
+            'avatar',
+            'rating_elo',
+            'normal_rating',
+            'royale_rating',
+            'wins',
+            'losses',
+            'total_matches',
+            'win_rate',
+        ]
+
+
+class FriendRequestSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    sender_nickname = serializers.CharField(source='sender.profile.nickname', read_only=True)
+    sender_rating = serializers.IntegerField(source='sender.profile.rating_elo', read_only=True)
+    sender_avatar = serializers.CharField(source='sender.profile.avatar', read_only=True)
+
+    receiver_username = serializers.CharField(source='receiver.username', read_only=True)
+    receiver_nickname = serializers.CharField(source='receiver.profile.nickname', read_only=True)
+    receiver_rating = serializers.IntegerField(source='receiver.profile.rating_elo', read_only=True)
+    receiver_avatar = serializers.CharField(source='receiver.profile.avatar', read_only=True)
+
+    class Meta:
+        from .models import FriendRequest
+        model = FriendRequest
+        fields = [
+            'id',
+            'sender_id',
+            'sender_username',
+            'sender_nickname',
+            'sender_rating',
+            'sender_avatar',
+            'receiver_id',
+            'receiver_username',
+            'receiver_nickname',
+            'receiver_rating',
+            'receiver_avatar',
+            'status',
+            'created_at',
+            'updated_at',
+        ]
+
+

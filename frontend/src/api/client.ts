@@ -92,6 +92,43 @@ export interface UserProfileData {
   created_at: string
 }
 
+export interface PlayerSearchResult {
+  id: number
+  username: string
+  nickname: string
+  avatar: string
+  rating_elo: number
+  normal_rating: number
+  royale_rating: number
+  wins: number
+  losses: number
+  total_matches: number
+  win_rate: number
+}
+
+export interface FriendRequestData {
+  id: number
+  sender_id: number
+  sender_username: string
+  sender_nickname: string
+  sender_rating: number
+  sender_avatar: string
+  receiver_id: number
+  receiver_username: string
+  receiver_nickname: string
+  receiver_rating: number
+  receiver_avatar: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+  updated_at: string
+}
+
+export interface FriendsListResponse {
+  friends: UserProfileData[]
+  received_requests: FriendRequestData[]
+  sent_requests: FriendRequestData[]
+}
+
 export interface MatchData {
   id: string
   mode: string
@@ -232,6 +269,32 @@ class ApiClient {
 
   async getMatchHistory(): Promise<MatchData[]> {
     return this.request<MatchData[]>('/api/matches/history/')
+  }
+
+  async searchPlayers(query: string): Promise<PlayerSearchResult[]> {
+    return this.request<PlayerSearchResult[]>(`/api/auth/search/?q=${encodeURIComponent(query)}`)
+  }
+
+  async getFriends(): Promise<FriendsListResponse> {
+    return this.request<FriendsListResponse>('/api/auth/friends/')
+  }
+
+  async sendFriendRequest(username: string): Promise<{ message: string; status: string; request?: FriendRequestData }> {
+    return this.request<{ message: string; status: string; request?: FriendRequestData }>('/api/auth/friends/request/', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    })
+  }
+
+  async respondFriendRequest(requestId: number, action: 'accept' | 'reject'): Promise<{ message: string; status: string }> {
+    return this.request<{ message: string; status: string }>(`/api/auth/friends/${requestId}/respond/`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    })
+  }
+
+  async getFriendshipStatus(username: string): Promise<{ status: 'none' | 'friends' | 'pending_sent' | 'pending_received' | 'self'; request_id?: number }> {
+    return this.request<{ status: 'none' | 'friends' | 'pending_sent' | 'pending_received' | 'self'; request_id?: number }>(`/api/auth/friends/status/${encodeURIComponent(username)}/`)
   }
 
   // ── Matchmaking & Matches ─────────────────────────────────────────────────
