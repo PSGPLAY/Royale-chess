@@ -3057,6 +3057,12 @@
   z-index: 100;
 }
 
+@media (min-width: 769px) {
+  .chess-player-banners-container.has-royal-shop {
+    bottom: 160px;
+  }
+}
+
 .player-banner {
   pointer-events: auto;
   display: flex;

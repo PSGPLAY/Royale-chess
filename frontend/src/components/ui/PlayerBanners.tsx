@@ -75,7 +75,7 @@ export const PlayerBanners: FC = () => {
   const isOpponentTurn = turn === opponentColor
 
   return (
-    <div className="chess-player-banners-container">
+    <div className={`chess-player-banners-container ${gameMode === 'royal' ? 'has-royal-shop' : ''}`}>
       {/* ── Top Player Banner: Opponent ── */}
       <div className={`player-banner opponent-banner ${opponentColor === 'w' ? 'banner-blue' : 'banner-red'} ${isOpponentTurn ? 'active-turn' : ''}`}>
         <div className="banner-avatar-wrap">

@@ -1,6 +1,30 @@
 import { useSyncExternalStore } from 'react'
-import { api } from '../api/client'
+import { api, ApiError, AUTH_PROFILE_STORAGE_KEY } from '../api/client'
 import type { UserProfileData } from '../api/client'
+
+const AUTH_TOKEN_STORAGE_KEY = 'royal_chess_auth_token'
+
+function readStoredProfile(): UserProfileData | null {
+  const storedProfile = localStorage.getItem(AUTH_PROFILE_STORAGE_KEY)
+  if (!storedProfile) return null
+
+  try {
+    const profile = JSON.parse(storedProfile) as UserProfileData
+    return typeof profile.id === 'number' && typeof profile.username === 'string'
+      ? profile
+      : null
+  } catch {
+    localStorage.removeItem(AUTH_PROFILE_STORAGE_KEY)
+    return null
+  }
+}
+
+function clearStoredSession() {
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+  localStorage.removeItem(AUTH_PROFILE_STORAGE_KEY)
+}
+
+const storedToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
 
 export interface AuthState {
   user: UserProfileData | null
@@ -15,9 +39,9 @@ type Listener = () => void
 
 class AuthStore {
   private state: AuthState = {
-    user: null,
-    token: localStorage.getItem('royal_chess_auth_token'),
-    isAuthenticated: !!localStorage.getItem('royal_chess_auth_token'),
+    user: storedToken ? readStoredProfile() : null,
+    token: storedToken,
+    isAuthenticated: !!storedToken,
     isLoading: false,
     error: null,
     isAuthModalOpen: false,
@@ -27,10 +51,7 @@ class AuthStore {
 
   constructor() {
     if (this.state.token) {
-      this.refreshProfile().catch(() => {
-        // Token expired or invalid -> clear
-        this.logout()
-      })
+      void this.refreshProfile()
     }
   }
 
@@ -58,7 +79,8 @@ class AuthStore {
     this.setState({ isLoading: true, error: null })
     try {
       const res = await api.login(usernameOrEmail, password)
-      localStorage.setItem('royal_chess_auth_token', res.token)
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, res.token)
+      localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(res.user))
       this.setState({
         user: res.user,
         token: res.token,
@@ -78,7 +100,8 @@ class AuthStore {
     this.setState({ isLoading: true, error: null })
     try {
       const res = await api.register(username, email, password)
-      localStorage.setItem('royal_chess_auth_token', res.token)
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, res.token)
+      localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(res.user))
       this.setState({
         user: res.user,
         token: res.token,
@@ -102,7 +125,7 @@ class AuthStore {
     } catch {
       // Ignore network errors on logout
     } finally {
-      localStorage.removeItem('royal_chess_auth_token')
+      clearStoredSession()
       this.setState({
         user: null,
         token: null,
@@ -114,9 +137,15 @@ class AuthStore {
   refreshProfile = async (): Promise<void> => {
     try {
       const profile = await api.getProfile()
+      localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(profile))
       this.setState({ user: profile, isAuthenticated: true })
-    } catch {
-      // ignore
+    } catch (error: unknown) {
+      // Keep the cached session during network failures, but remove credentials
+      // that the server has explicitly rejected.
+      if (error instanceof ApiError && error.status === 401) {
+        clearStoredSession()
+        this.setState({ user: null, token: null, isAuthenticated: false })
+      }
     }
   }
 }

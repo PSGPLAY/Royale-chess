@@ -5,6 +5,17 @@
 
 const RENDER_API_URL = 'https://royale-chess.onrender.com'
 const RENDER_WS_URL = 'wss://royale-chess.onrender.com'
+export const AUTH_PROFILE_STORAGE_KEY = 'royal_chess_auth_profile'
+
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
 
 function normalizeBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, '')
@@ -154,7 +165,7 @@ class ApiClient {
         data.message ||
         (typeof data === 'object' ? Object.values(data).flat().join(' ') : null) ||
         `Request failed with status ${response.status}`
-      throw new Error(errMsg)
+      throw new ApiError(errMsg, response.status)
     }
 
     return data as T
