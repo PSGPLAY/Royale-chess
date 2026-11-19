@@ -529,8 +529,9 @@ def finalize_match_stats(match) -> None:
 
         if white_profile and black_profile:
             # Full ELO calculation between two registered players
-            rw = white_profile.rating_elo
-            rb = black_profile.rating_elo
+            rating_field = 'royale_rating' if match.is_royale_mode else 'normal_rating'
+            rw = getattr(white_profile, rating_field)
+            rb = getattr(black_profile, rating_field)
 
             ew = 1.0 / (1.0 + 10.0 ** ((rb - rw) / 400.0))
             eb = 1.0 - ew
@@ -546,8 +547,11 @@ def finalize_match_stats(match) -> None:
             delta_w = round(k * (sw - ew))
             delta_b = round(k * (sb - eb))
 
-            white_profile.rating_elo = max(100, rw + delta_w)
-            black_profile.rating_elo = max(100, rb + delta_b)
+            setattr(white_profile, rating_field, max(0, rw + delta_w))
+            setattr(black_profile, rating_field, max(0, rb + delta_b))
+            # Legacy clients use this field; mirror the most recently played mode.
+            white_profile.rating_elo = white_profile.normal_rating if rating_field == 'normal_rating' else white_profile.royale_rating
+            black_profile.rating_elo = black_profile.normal_rating if rating_field == 'normal_rating' else black_profile.royale_rating
 
         # Update match tallies & persistent coins
         for prof, role in [(white_profile, 'w'), (black_profile, 'b')]:

@@ -8,6 +8,8 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     win_rate = serializers.FloatField(read_only=True)
     global_rank = serializers.SerializerMethodField()
+    normal_global_rank = serializers.SerializerMethodField()
+    royale_global_rank = serializers.SerializerMethodField()
 
     class Meta:
         model = PlayerProfile
@@ -18,7 +20,11 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
             'avatar',
             'persistent_coins',
             'rating_elo',
+            'normal_rating',
+            'royale_rating',
             'global_rank',
+            'normal_global_rank',
+            'royale_global_rank',
             'total_matches',
             'wins',
             'losses',
@@ -28,7 +34,13 @@ class PlayerProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_global_rank(self, obj):
-        return PlayerProfile.objects.filter(rating_elo__gt=obj.rating_elo).count() + 1
+        return self.get_normal_global_rank(obj)
+
+    def get_normal_global_rank(self, obj):
+        return PlayerProfile.objects.filter(normal_rating__gt=obj.normal_rating).count() + 1
+
+    def get_royale_global_rank(self, obj):
+        return PlayerProfile.objects.filter(royale_rating__gt=obj.royale_rating).count() + 1
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -64,6 +76,8 @@ class LeaderboardSerializer(serializers.ModelSerializer):
             'nickname',
             'avatar',
             'rating_elo',
+            'normal_rating',
+            'royale_rating',
             'total_matches',
             'wins',
             'losses',

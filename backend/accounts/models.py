@@ -13,7 +13,10 @@ class PlayerProfile(models.Model):
     persistent_coins = models.PositiveIntegerField(default=100)
     
     # Competitive ranking
-    rating_elo = models.PositiveIntegerField(default=1200)
+    # Keep the legacy aggregate field for older clients; mode ratings are authoritative.
+    rating_elo = models.PositiveIntegerField(default=0)
+    normal_rating = models.PositiveIntegerField(default=0)
+    royale_rating = models.PositiveIntegerField(default=0)
     
     # Statistics
     total_matches = models.PositiveIntegerField(default=0)
@@ -25,7 +28,7 @@ class PlayerProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.nickname or self.user.username} ({self.rating_elo} ELO)"
+        return f"{self.nickname or self.user.username} (Normal {self.normal_rating} / Royale {self.royale_rating})"
 
     @property
     def win_rate(self) -> float:

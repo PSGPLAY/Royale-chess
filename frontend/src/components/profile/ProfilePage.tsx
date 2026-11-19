@@ -81,7 +81,7 @@ export const ProfilePage: FC = () => {
 
   const displayName  = user ? (user.nickname || user.username) : guestName
   const displayAt    = user ? `@${user.username}` : `#${guestSession.slice(0, 8)}`
-  const elo          = user?.rating_elo ?? 1200
+  const elo          = user?.normal_rating ?? 0
   const tier         = getTier(elo)
   const nextTier     = getNextTier(elo)
   const eloProgress  = getEloProgress(elo)
@@ -325,6 +325,11 @@ export const ProfilePage: FC = () => {
                 </div>
               )}
 
+              <div className="ppage-stats-grid">
+                <div className="pstat-card"><div className="pstat-info"><span className="pstat-num">{(user?.normal_rating ?? 0).toLocaleString()}</span><span className="pstat-label">Normal Chess · Rank #{user?.normal_global_rank ?? '—'}</span></div></div>
+                <div className="pstat-card"><div className="pstat-info"><span className="pstat-num">{(user?.royale_rating ?? 0).toLocaleString()}</span><span className="pstat-label">Royale · Rank #{user?.royale_global_rank ?? '—'}</span></div></div>
+              </div>
+
               {/* Stats grid */}
               <div className="ppage-stats-section-heading">
                 <TrendingUp size={15} />
@@ -337,7 +342,7 @@ export const ProfilePage: FC = () => {
                   </div>
                   <div className="pstat-info">
                     <span className="pstat-num">{elo.toLocaleString()}</span>
-                    <span className="pstat-label">ELO Rating</span>
+                    <span className="pstat-label">Normal Chess Rating</span>
                   </div>
                 </div>
                 <div className="pstat-card">

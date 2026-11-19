@@ -79,6 +79,10 @@ export interface UserProfileData {
   avatar: string
   persistent_coins: number
   rating_elo: number
+  normal_rating: number
+  royale_rating: number
+  normal_global_rank?: number
+  royale_global_rank?: number
   global_rank?: number
   total_matches: number
   wins: number
