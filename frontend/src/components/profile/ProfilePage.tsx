@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   ArrowLeft, Trophy, LogOut, Crown, Shield, Target,
   Calendar, Eye, Swords, UserPlus, MessageSquare,
-  Clock, Flame, Anchor, Award, Users,
+  Clock, Flame, Users,
   CheckCircle2, Download, Search,
   Compass, Coins, User, UserCheck, UserX,
   X, Check, ExternalLink,
@@ -177,7 +177,7 @@ export const ProfilePage: FC = () => {
         }
       })
       .catch((err) => {
-        setViewedError(err.message || 'Commander not found on high seas.')
+        setViewedError(err.message || 'Player profile not found.')
       })
       .finally(() => {
         setIsLoadingViewed(false)
@@ -301,25 +301,22 @@ export const ProfilePage: FC = () => {
 
   // Determine which profile data to display
   const activeProfile = isViewingOther ? viewedProfile : user
-  const isGuest = !isViewingOther && !isAuthenticated
 
   const displayName = isViewingOther
     ? (viewedProfile?.nickname || viewedProfile?.username || viewingUsername)
     : (user ? (user.nickname || user.username) : getGuestDisplayName())
 
-  const normalElo = activeProfile?.normal_rating ?? (isGuest ? 1180 : 0)
-  const royaleElo = activeProfile?.royale_rating ?? (isGuest ? 1238 : 0)
-  const totalBattles = activeProfile?.total_matches ? activeProfile.total_matches : (isGuest ? 203 : 0)
-  const wins = activeProfile?.total_matches ? activeProfile.wins : (isGuest ? 127 : 0)
-  const draws = activeProfile?.total_matches ? activeProfile.draws : (isGuest ? 17 : 0)
-  const losses = activeProfile?.total_matches ? activeProfile.losses : (isGuest ? 59 : 0)
-  const winRate = activeProfile?.total_matches
-    ? Number(activeProfile.win_rate.toFixed(1))
-    : (isGuest ? 62.7 : 0)
+  const normalElo = activeProfile?.normal_rating ?? 0
+  const royaleElo = activeProfile?.royale_rating ?? 0
+  const totalBattles = activeProfile?.total_matches ?? 0
+  const wins = activeProfile?.wins ?? 0
+  const draws = activeProfile?.draws ?? 0
+  const losses = activeProfile?.losses ?? 0
+  const winRate = activeProfile?.win_rate ?? 0
   const joinedDate = activeProfile?.created_at
     ? new Date(activeProfile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : 'Oct 2023'
-  const rankGlobal = activeProfile?.global_rank ? `#${activeProfile.global_rank}` : (isGuest ? '#1,420' : '—')
+    : '—'
+  const rankGlobal = activeProfile?.global_rank ? `#${activeProfile.global_rank}` : '—'
 
   // Win, Draw, Loss percentages
   const wPct = totalBattles > 0 ? Math.round((wins / totalBattles) * 100) : 0
@@ -332,7 +329,7 @@ export const ProfilePage: FC = () => {
   }
 
   // Convert real matches to engagement items if available
-  const displayEngagements: EngagementItem[] = matchHistory.length > 0 && !isViewingOther
+  const displayEngagements: EngagementItem[] = !isViewingOther
     ? matchHistory.map((m) => {
         const iAmWhite = user && m.white_player === user.id
         const oppName = iAmWhite
@@ -358,7 +355,7 @@ export const ProfilePage: FC = () => {
           result,
         }
       })
-    : DEFAULT_ENGAGEMENTS
+    : DEFAULT_ENGAGEMENTS.slice(0, 0)
 
   return (
     <div className="rc-profile-screen">
@@ -409,7 +406,7 @@ export const ProfilePage: FC = () => {
             <div
               className={`nav-profile-pill ${!isViewingOther ? 'active-nav-pill' : ''}`}
               onClick={() => navigationStore.openProfilePage('overview')}
-              title="View My Commander Profile"
+              title="View my profile"
               style={{ cursor: 'pointer' }}
             >
               <div className="nav-avatar">🏴‍☠️</div>
@@ -485,7 +482,7 @@ export const ProfilePage: FC = () => {
           <div className="rc-viewing-header-bar">
             <div className="rc-vh-info">
               <Eye size={15} />
-              <span>Viewing Public Commander Dossier: <strong>@{viewingUsername}</strong></span>
+              <span>Viewing <strong>@{viewingUsername}</strong>'s profile</span>
             </div>
             {isAuthenticated && (
               <button
@@ -507,8 +504,8 @@ export const ProfilePage: FC = () => {
         ) : viewedError ? (
           <div className="rc-viewed-error-card">
             <Compass size={36} className="rc-error-compass-icon" />
-            <h3>Commander Not Found</h3>
-            <p>No naval record exists for "<strong>{viewingUsername}</strong>" on the high seas.</p>
+            <h3>Player Not Found</h3>
+            <p>No profile was found for "<strong>{viewingUsername}</strong>".</p>
             <div className="rc-error-actions">
               <button
                 className="rc-btn-duel"
@@ -533,7 +530,7 @@ export const ProfilePage: FC = () => {
               {/* Status badges top-right */}
               <div className="rc-hero-status-row">
                 <span className="rc-status-pill rc-status-online">
-                  <span className="rc-online-dot" /> Online Now • In Harbor
+                  <span className="rc-online-dot" /> Online now
                 </span>
                 <span className="rc-status-pill rc-status-verified">
                   <CheckCircle2 size={13} /> Verified Admiral
@@ -570,7 +567,7 @@ export const ProfilePage: FC = () => {
 
 
                   <p className="rc-hero-motto">
-                    Naval chess tactician • Royale Mode enthusiast • Streaming high seas maneuvers &amp; King-defense cauldrons.
+                    Chess player • Enjoys Royale and classic chess.
                   </p>
 
                   <div className="rc-hero-meta-row">
@@ -661,7 +658,7 @@ export const ProfilePage: FC = () => {
 
             {/* ════════════ 3. FOUR MODE STAT CARDS ═══════════════════════════ */}
             <section className="rc-modes-grid">
-              {/* Card 1: Flagship Royale */}
+              {/* Card 1: Royale */}
               <div className="rc-mode-card rc-card-royale">
                 <div className="rc-mode-card-header">
                   <div className="rc-mode-icon-title">
@@ -749,93 +746,6 @@ export const ProfilePage: FC = () => {
                 </div>
               </div>
 
-              {/* Card 3: Maneuver Puzzles */}
-              <div className="rc-mode-card rc-card-puzzles">
-                <div className="rc-mode-card-header">
-                  <div className="rc-mode-icon-title">
-                    <Target size={16} className="rc-mode-icon-green" />
-                    <div>
-                      <span className="rc-mode-category">MANEUVER PUZZLES</span>
-                      <span className="rc-mode-name">Tactical Trials</span>
-                    </div>
-                  </div>
-                  <span className="rc-mode-tag rc-tag-green">STREAK: 14</span>
-                </div>
-
-                <div className="rc-mode-stats-row">
-                  <div className="rc-mode-main-number">
-                    <span className="rc-rating-val">1,650</span>
-                    <span className="rc-rating-trend rc-trend-up">↗ +420</span>
-                  </div>
-                  <div className="rc-mode-peak-info">
-                    <span className="rc-peak-lbl">SUCCESS RATE</span>
-                    <span className="rc-peak-val" style={{ color: '#22c55e' }}>83.2%</span>
-                  </div>
-                </div>
-
-                {/* Sparkline curve */}
-                <div className="rc-mode-sparkline">
-                  <svg viewBox="0 0 200 45" className="rc-sparkline-svg">
-                    <path
-                      d="M 5,36 C 45,34 75,28 115,18 C 145,10 170,16 195,6"
-                      fill="none"
-                      stroke="#22c55e"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="195" cy="6" r="3.5" fill="#22c55e" />
-                  </svg>
-                </div>
-
-                <div className="rc-mode-card-footer">
-                  <span className="rc-footer-winrate">Fastest: <strong>4.2s</strong></span>
-                  <span className="rc-footer-wdl">Best Streak: 14 in a row</span>
-                </div>
-              </div>
-
-              {/* Card 4: Local & Fast Blitz */}
-              <div className="rc-mode-card rc-card-blitz">
-                <div className="rc-mode-card-header">
-                  <div className="rc-mode-icon-title">
-                    <Flame size={16} className="rc-mode-icon-orange" />
-                    <div>
-                      <span className="rc-mode-category">LOCAL &amp; FAST</span>
-                      <span className="rc-mode-name">Blitz Skirmish</span>
-                    </div>
-                  </div>
-                  <span className="rc-mode-tag rc-tag-orange">5m • 3m</span>
-                </div>
-
-                <div className="rc-mode-stats-row">
-                  <div className="rc-mode-main-number">
-                    <span className="rc-rating-val">1,212</span>
-                    <span className="rc-rating-trend rc-trend-up">↗ +12</span>
-                  </div>
-                  <div className="rc-mode-peak-info">
-                    <span className="rc-peak-lbl">TOTAL BATTLES</span>
-                    <span className="rc-peak-val">118</span>
-                  </div>
-                </div>
-
-                {/* Sparkline curve */}
-                <div className="rc-mode-sparkline">
-                  <svg viewBox="0 0 200 45" className="rc-sparkline-svg">
-                    <path
-                      d="M 5,34 C 40,32 80,30 110,26 C 140,22 170,16 195,12"
-                      fill="none"
-                      stroke="#fb923c"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="195" cy="12" r="3.5" fill="#fb923c" />
-                  </svg>
-                </div>
-
-                <div className="rc-mode-card-footer">
-                  <span className="rc-footer-winrate">Winrate: <strong>61%</strong></span>
-                  <span className="rc-footer-wdl">62W • 38L • 18D</span>
-                </div>
-              </div>
             </section>
 
             {/* ════════════ 4. TWO-COLUMN DASHBOARD SECTION ═══════════════════ */}
@@ -844,12 +754,12 @@ export const ProfilePage: FC = () => {
               {/* ────── LEFT COLUMN (ANALYTICS & ENGAGEMENTS) ────── */}
               <div className="rc-dash-col-left">
 
-                {/* Card: Battlefield Rating Analytics */}
+                {/* Rating statistics */}
                 <div className="rc-dash-card rc-analytics-card">
                   <div className="rc-dash-card-header">
                     <div className="rc-dash-card-title">
                       <Compass size={17} className="rc-title-gold-icon" />
-                      <span>Battlefield Rating Analytics</span>
+                      <span>Rating Statistics</span>
                     </div>
                     {/* Time filter buttons */}
                     <div className="rc-pill-filter-group">
@@ -951,10 +861,10 @@ export const ProfilePage: FC = () => {
                     </div>
                   </div>
 
-                  {/* Overall Battle Record summary */}
+                {/* Overall match record */}
                   <div className="rc-record-summary-box">
                     <div className="rc-record-header">
-                      <span className="rc-record-title">Overall Battle Record ({totalBattles} Battles Evaluated)</span>
+                    <span className="rc-record-title">Match Record ({totalBattles} matches)</span>
                       <span className="rc-record-winrate-tag">{winRate}% Victory Rate</span>
                     </div>
 
@@ -981,7 +891,7 @@ export const ProfilePage: FC = () => {
                     </div>
                   </div>
 
-                  {/* 5 Naval Badge metrics */}
+                {/* Player statistics */}
                   <div className="rc-mini-metrics-row">
                     <div className="rc-metric-cell">
                       <Crown size={17} className="rc-cell-gold-icon" />
@@ -1011,12 +921,12 @@ export const ProfilePage: FC = () => {
                   </div>
                 </div>
 
-                {/* Card: Recent Fleet Engagements (Match History) */}
+                {/* Recent matches */}
                 <div className="rc-dash-card rc-engagements-card">
                   <div className="rc-dash-card-header">
                     <div className="rc-dash-card-title">
                       <Swords size={17} className="rc-title-gold-icon" />
-                      <span>Recent Fleet Engagements</span>
+                      <span>Recent Matches</span>
                     </div>
                     <div className="rc-pill-filter-group">
                       <button
@@ -1108,7 +1018,7 @@ export const ProfilePage: FC = () => {
                     ))}
                   </div>
 
-                  {/* View Full Logbook footer */}
+                  {/* Match history link */}
                   <div className="rc-engagements-footer">
                     <button
                       className="rc-view-logbook-btn"
@@ -1117,7 +1027,7 @@ export const ProfilePage: FC = () => {
                         navigationStore.openProfilePage('leaderboard')
                       }}
                     >
-                      View Full Logbook &amp; PGN Vault ({totalBattles} Battles) &gt;
+                      View Match History ({totalBattles} matches) &gt;
                     </button>
                   </div>
                 </div>
@@ -1126,12 +1036,12 @@ export const ProfilePage: FC = () => {
               {/* ────── RIGHT COLUMN (PLAYER SEARCH & ALLIES, TROPHIES) ────── */}
               <div className="rc-dash-col-right">
 
-                {/* 1. PLAYER SEARCH & ALLIES / FRIEND REQUESTS (Clan / Fleet War removed) */}
+                {/* Player search and friend requests */}
                 <div className="rc-dash-card rc-allies-manager-card">
                   <div className="rc-dash-card-header">
                     <div className="rc-dash-card-title">
                       <Users size={16} className="rc-title-gold-icon" />
-                      <span>Commanders &amp; Allies</span>
+                      <span>Players and Friends</span>
                     </div>
 
                     {/* Allies / Requests / Search Tab Switcher */}
@@ -1216,7 +1126,7 @@ export const ProfilePage: FC = () => {
                                   <button
                                     className="rc-btn-sr-view"
                                     onClick={() => navigationStore.openUserProfile(p.username)}
-                                    title="View Commander Profile"
+                                    title="View player profile"
                                   >
                                     <ExternalLink size={12} />
                                     <span>Profile</span>
@@ -1331,7 +1241,7 @@ export const ProfilePage: FC = () => {
                                   <span className="rc-ally-rating">{friend.royale_rating || friend.normal_rating} ELO</span>
                                 </div>
                                 <span className="rc-ally-status-txt rc-online-status">
-                                  In Harbor • Ready for Battle
+                                  Online and available
                                 </span>
                               </div>
 
@@ -1342,7 +1252,7 @@ export const ProfilePage: FC = () => {
                                   title="View Profile"
                                 >
                                   <ExternalLink size={11} />
-                                  <span>Dossier</span>
+                                  <span>Profile</span>
                                 </button>
                                 <button
                                   className="rc-btn-ally-action rc-btn-watch"
@@ -1359,14 +1269,14 @@ export const ProfilePage: FC = () => {
                       ) : (
                         <div className="rc-allies-empty-box">
                           <Users size={28} className="rc-allies-empty-icon" />
-                          <p>No fleet allies yet. Search commanders or share your profile URL (e.g. <strong>/{user?.username || 'username'}</strong>) to enlist friends!</p>
+                          <p>You have no friends yet. Search for players or share your profile link (for example, <strong>/{user?.username || 'username'}</strong>).</p>
                           <button
                             className="rc-btn-sr-add"
                             onClick={() => setAlliesTab('search')}
                             style={{ margin: '8px auto 0' }}
                           >
                             <Search size={13} />
-                            <span>Search Commanders</span>
+                            <span>Search Players</span>
                           </button>
                         </div>
                       )}
@@ -1374,50 +1284,7 @@ export const ProfilePage: FC = () => {
                   )}
                 </div>
 
-                {/* 2. Nautical Trophies Card */}
-                <div className="rc-dash-card rc-trophies-card">
-                  <div className="rc-dash-card-header">
-                    <div className="rc-dash-card-title">
-                      <Trophy size={16} className="rc-title-gold-icon" />
-                      <span>Nautical Trophies</span>
-                    </div>
-                    <span className="rc-trophy-count">24 / 36 Unlocked</span>
-                  </div>
-
-                  <div className="rc-trophies-row">
-                    <div className="rc-trophy-badge" title="First Blood - Tier III">
-                      <div className="rc-trophy-icon-circle rc-tcircle-gold">
-                        <Award size={18} />
-                      </div>
-                      <span className="rc-trophy-name">First Blood</span>
-                      <span className="rc-trophy-tier">Tier III</span>
-                    </div>
-
-                    <div className="rc-trophy-badge" title="Cauldron Master - Tier II">
-                      <div className="rc-trophy-icon-circle rc-tcircle-bronze">
-                        <Flame size={18} />
-                      </div>
-                      <span className="rc-trophy-name">Cauldron...</span>
-                      <span className="rc-trophy-tier">Tier II</span>
-                    </div>
-
-                    <div className="rc-trophy-badge" title="Anchor Down - Tier IV">
-                      <div className="rc-trophy-icon-circle rc-tcircle-blue">
-                        <Anchor size={18} />
-                      </div>
-                      <span className="rc-trophy-name">Anchor...</span>
-                      <span className="rc-trophy-tier">Tier IV</span>
-                    </div>
-
-                    <div className="rc-trophy-badge" title="100 Checkmates - Master">
-                      <div className="rc-trophy-icon-circle rc-tcircle-green">
-                        <Crown size={18} />
-                      </div>
-                      <span className="rc-trophy-name">100 Ck...</span>
-                      <span className="rc-trophy-tier">Master</span>
-                    </div>
-                  </div>
-                </div>
+                
 
               </div>
             </section>
@@ -1430,13 +1297,13 @@ export const ProfilePage: FC = () => {
       <footer className="rc-page-footer">
         <div className="rc-footer-left">
           <Crown size={14} className="rc-footer-icon" />
-          <span>© 2024 Royal Chess. Strategy &amp; Classic. Master the Naval Arena.</span>
+          <span>© 2024 Royal Chess. Classic chess and Royale mode.</span>
         </div>
         <div className="rc-footer-right">
           <span className="rc-footer-status">
-            <span className="rc-footer-online-dot" /> Global Fleet Online
+            <span className="rc-footer-online-dot" /> Players online
           </span>
-          <span className="rc-footer-link">Fair Play Protocol</span>
+          <span className="rc-footer-link">Fair Play</span>
           <span className="rc-footer-link">Terms of Service</span>
         </div>
       </footer>
@@ -1454,7 +1321,7 @@ export const ProfilePage: FC = () => {
             <div className="rc-modal-header">
               <div className="rc-modal-title">
                 <Trophy size={20} className="rc-title-gold-icon" />
-                <h3>High Seas Global Rankings</h3>
+                <h3>Global Rankings</h3>
               </div>
               <button
                 className="rc-modal-close-btn"
@@ -1470,11 +1337,11 @@ export const ProfilePage: FC = () => {
             <div className="rc-modal-body">
               <div className="rc-modal-table-header">
                 <span>#</span>
-                <span>Commander</span>
+                <span>Player</span>
                 <span>ELO</span>
                 <span>W / L</span>
                 <span>Win Rate</span>
-                <span>Battles</span>
+                <span>Matches</span>
               </div>
 
               <div className="rc-modal-table-rows">

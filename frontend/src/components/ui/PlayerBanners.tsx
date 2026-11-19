@@ -74,7 +74,7 @@ export const PlayerBanners: FC = () => {
 
   const opponentName = isOnlineMatch
     ? (myRole === 'w' ? activeMatch?.black_username : activeMatch?.white_username) || 'Opponent'
-    : 'Red Commander'
+    : 'Red Player'
 
   const myElo = user?.rating_elo ? `${user.rating_elo}` : 'Guest'
   const opponentElo = isOnlineMatch ? 'Ranked' : 'Normal'

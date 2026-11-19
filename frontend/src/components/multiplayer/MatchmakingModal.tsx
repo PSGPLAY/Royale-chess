@@ -46,7 +46,7 @@ export const MatchmakingModal: FC = () => {
 
         {/* Status text */}
         <div className="matchmaking-text-group">
-          <h3 className="matchmaking-title">Scanning the High Seas...</h3>
+          <h3 className="matchmaking-title">Searching for an opponent...</h3>
           <p className="matchmaking-sub">Searching for an opponent in {modeLabel}</p>
         </div>
 

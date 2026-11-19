@@ -3762,6 +3762,12 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Puzzles and Blitz are not game modes in this project. */
+.rc-card-puzzles,
+.rc-card-blitz {
+  display: none;
+}
+
 /* ── 1. Top Navbar (Matches Landing Page) ───────────────────────── */
 .profile-landing-header {
   position: sticky;

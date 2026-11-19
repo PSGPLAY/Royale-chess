@@ -67,7 +67,7 @@ export const LandingPage: FC = () => {
             <div
               className="nav-profile-pill"
               onClick={() => navigationStore.openProfilePage('overview', user.username)}
-              title="View Commander Profile & Rankings"
+              title="View your profile and rankings"
             >
               <div className="nav-avatar">🏴‍☠️</div>
               <div className="nav-user-info">
@@ -120,7 +120,7 @@ export const LandingPage: FC = () => {
 
             <h2 className="hero-headline">
               Play Chess. <br />
-              <span className="gradient-text">Command Your Fleet.</span>
+              <span className="gradient-text">Play Your Next Game.</span>
             </h2>
 
             <p className="hero-description">
@@ -180,7 +180,7 @@ export const LandingPage: FC = () => {
         <section className="modes-section">
           <div className="modes-header">
             <h3 className="section-title">Select Game Mode</h3>
-            <span className="section-sub">Choose your battlefield:</span>
+            <span className="section-sub">Choose a game mode:</span>
           </div>
 
           <div className="modes-grid">

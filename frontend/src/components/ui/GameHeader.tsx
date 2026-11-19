@@ -21,8 +21,8 @@ export const GameHeader: FC = () => {
   const currentMode = GAME_MODES.find((m) => m.id === activeModeId)
 
   const opponentName = myRole === 'w'
-    ? (activeMatch?.black_username || 'Red Commander')
-    : (activeMatch?.white_username || 'Blue Commander')
+    ? (activeMatch?.black_username || 'Red Player')
+    : (activeMatch?.white_username || 'Blue Player')
 
   const handleExitMenu = async () => {
     if (isOnlineMatch && activeMatch && activeMatch.status === 'active') {

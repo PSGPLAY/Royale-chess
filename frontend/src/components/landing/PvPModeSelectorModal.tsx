@@ -45,7 +45,7 @@ export const PvPModeSelectorModal: FC<PvPModeSelectorModalProps> = ({ isOpen, on
             </div>
             <h4 className="option-name">Royale Mode</h4>
             <p className="option-summary">
-              Start with <strong>only your King and 4 coins</strong>. Recruit sailors, build your fleet, and conquer!
+              Start with <strong>only your King and 4 coins</strong>. Buy pieces, plan your moves, and checkmate your opponent.
             </p>
             <div className="option-features">
               <span>✓ 4 Starting Coins</span>

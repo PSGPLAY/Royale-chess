@@ -26,7 +26,7 @@ export const PromotionModal: FC = () => {
       <div className="promotion-card">
         <h3 className="promotion-title">Pawn Promotion</h3>
         <p className="promotion-subtitle">
-          Promote your sailor into a powerful commanding unit:
+          Choose a piece to promote your pawn to:
         </p>
 
         <div className="promotion-options-grid">

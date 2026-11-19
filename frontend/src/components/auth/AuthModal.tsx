@@ -34,7 +34,7 @@ export const AuthModal: FC = () => {
             <Crown size={22} className="crown-glow" />
           </div>
           <h2 className="auth-title">
-            {tab === 'login' ? 'Board the Fleet' : 'Enlist as Commander'}
+            {tab === 'login' ? 'Log In' : 'Create an Account'}
           </h2>
           <p className="auth-subtitle">
             {tab === 'login'
@@ -87,7 +87,7 @@ export const AuthModal: FC = () => {
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="auth-input-group">
             <label className="auth-label">
-              {tab === 'login' ? 'Commander Name or Email' : 'Commander Name (Username)'}
+              {tab === 'login' ? 'Username or Email' : 'Username'}
             </label>
             <div className="auth-input-wrapper">
               {tab === 'login' && username.includes('@') ? (
@@ -168,7 +168,7 @@ export const AuthModal: FC = () => {
             ) : (
               <>
                 <UserPlus size={16} />
-                <span>Create Commander Account</span>
+                <span>Create Account</span>
               </>
             )}
           </button>
