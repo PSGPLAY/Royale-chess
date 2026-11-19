@@ -1,7 +1,7 @@
 import type { FC } from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import {
-  ArrowLeft, Trophy, LogOut, Crown, Shield, Target,
+  ArrowLeft, Trophy, LogOut, Crown, Shield,
   Calendar, Eye, Swords, UserPlus, MessageSquare,
   Clock, Flame, Users,
   CheckCircle2, Download, Search,
