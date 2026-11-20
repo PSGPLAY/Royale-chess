@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { LandingPage } from './components/landing/LandingPage'
 import { AuthModal } from './components/auth/AuthModal'
 import { ProfilePage } from './components/profile/ProfilePage'
+import { SettingsPage } from './components/settings/SettingsPage'
 import { MatchmakingModal } from './components/multiplayer/MatchmakingModal'
 import { useNavigationStore } from './state/appNavigationStore'
 import { useAuthStore } from './state/authStore'
@@ -61,7 +62,9 @@ export const App: FC = () => {
           ? <LandingPage />
           : currentScreen === 'profile'
             ? <ProfilePage />
-            : <GameScreen />}
+            : currentScreen === 'settings'
+              ? <SettingsPage />
+              : <GameScreen />}
       </Suspense>
 
       {/* Global authentication and matchmaking overlays */}

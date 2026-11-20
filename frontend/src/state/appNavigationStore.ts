@@ -5,12 +5,14 @@ import { gameStore } from './gameStore'
 import { royalModeStore } from '../royal/royalModeStore'
 
 export type ProfileTab = 'overview' | 'history' | 'leaderboard'
-export type AppScreen = 'landing' | 'game' | 'profile'
+export type SettingsTab = 'profile' | 'theme' | 'audio' | 'gameplay' | 'account' | 'notifications'
+export type AppScreen = 'landing' | 'game' | 'profile' | 'settings'
 
 export interface NavigationState {
   currentScreen: AppScreen
   activeModeId: GameModeId
   profileTab: ProfileTab
+  settingsTab?: SettingsTab
   viewingUsername?: string
 }
 
@@ -32,6 +34,7 @@ const RESERVED_ROUTES = new Set([
   'game',
   'play',
   'profile',
+  'settings',
   'rankings',
   'leaderboard',
   'armory',
@@ -71,6 +74,19 @@ export function parseUrlToState(): NavigationState {
       currentScreen: 'profile',
       activeModeId: 'royale',
       profileTab: 'leaderboard',
+    }
+  }
+
+  // 1b. Settings route: /settings, /settings/:tab
+  if (lowerPath === '/settings' || lowerPath.startsWith('/settings/')) {
+    const sub = parts[1] as SettingsTab | undefined
+    const validTabs: SettingsTab[] = ['profile', 'theme', 'audio', 'gameplay', 'account', 'notifications']
+    const settingsTab = sub && validTabs.includes(sub) ? sub : 'profile'
+    return {
+      currentScreen: 'settings',
+      activeModeId: 'royale',
+      profileTab: 'overview',
+      settingsTab,
     }
   }
 
@@ -146,6 +162,11 @@ export function getPathFromState(state: NavigationState): string {
   }
   if (state.currentScreen === 'game') {
     return `/game/${state.activeModeId}`
+  }
+  if (state.currentScreen === 'settings') {
+    return state.settingsTab && state.settingsTab !== 'profile'
+      ? `/settings/${state.settingsTab}`
+      : '/settings'
   }
   if (state.currentScreen === 'profile') {
     if (state.profileTab === 'leaderboard') return '/rankings'
@@ -267,6 +288,17 @@ class NavigationStore {
       currentScreen: 'profile',
       profileTab: 'overview',
       viewingUsername: username,
+    })
+  }
+
+  /**
+   * Opens settings page with the specified tab: /settings or /settings/:tab
+   */
+  openSettingsPage = (settingsTab: SettingsTab = 'profile') => {
+    this.updateStateAndUrl({
+      currentScreen: 'settings',
+      settingsTab,
+      viewingUsername: undefined,
     })
   }
 

@@ -10,6 +10,8 @@ import { audioEngine } from './audioEngine'
 export interface AudioSettings {
   isMuted: boolean
   masterVolume: number
+  ambientVolume: number
+  sfxVolume: number
   ambientEnabled: boolean
 }
 
@@ -19,7 +21,9 @@ class AudioSettingsStore {
   private state: AudioSettings = {
     isMuted: false,
     masterVolume: 0.75,
-    ambientEnabled: false, // Default to crisp clean game audio with zero background hiss
+    ambientVolume: 0.5,
+    sfxVolume: 1.0,
+    ambientEnabled: false,
   }
 
   private listeners = new Set<Listener>()
@@ -46,10 +50,26 @@ class AudioSettingsStore {
     this.setState({ masterVolume: audioEngine.masterVolume })
   }
 
+  setSfxVolume = (v: number): void => {
+    audioEngine.setSfxVolume(v)
+    this.setState({ sfxVolume: v })
+  }
+
+  setAmbientVolume = (v: number): void => {
+    audioEngine.setAmbientVolume(v)
+    const enabled = v > 0
+    if (enabled && !this.state.ambientEnabled) {
+      audioEngine.startAmbient(v)
+    } else if (!enabled && this.state.ambientEnabled) {
+      audioEngine.stopAmbient()
+    }
+    this.setState({ ambientVolume: v, ambientEnabled: enabled })
+  }
+
   toggleAmbient = (): void => {
     const next = !this.state.ambientEnabled
     if (next) {
-      audioEngine.startAmbient()
+      audioEngine.startAmbient(this.state.ambientVolume)
     } else {
       audioEngine.stopAmbient()
     }
@@ -58,7 +78,7 @@ class AudioSettingsStore {
 
   startAmbientIfEnabled = (): void => {
     if (this.state.ambientEnabled && !this.state.isMuted) {
-      audioEngine.startAmbient()
+      audioEngine.startAmbient(this.state.ambientVolume)
     }
   }
 

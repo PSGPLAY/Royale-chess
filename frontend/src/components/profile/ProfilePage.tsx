@@ -391,14 +391,10 @@ export const ProfilePage: FC = () => {
             Pass &amp; Play
           </button>
           <button
-            className="nav-item nav-item-rankings active"
-            onClick={() => {
-              fetchRankings()
-              navigationStore.openProfilePage('leaderboard')
-            }}
+            className="nav-item nav-item-settings"
+            onClick={() => navigationStore.openSettingsPage()}
           >
-            <Trophy size={14} />
-            <span className="rankings-label">Rankings</span>
+            Settings
           </button>
 
           {/* Profile / Auth Pill */}
@@ -409,7 +405,13 @@ export const ProfilePage: FC = () => {
               title="View my profile"
               style={{ cursor: 'pointer' }}
             >
-              <div className="nav-avatar">🏴‍☠️</div>
+              <div className="nav-avatar">
+                {user.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('/') || user.avatar.startsWith('http')) ? (
+                  <img src={user.avatar} alt="Avatar" className="nav-avatar-img" />
+                ) : (
+                  '👤'
+                )}
+              </div>
               <div className="nav-user-info">
                 <span className="nav-nickname">{user.nickname || user.username}</span>
                 <div className="nav-stats-row">
@@ -499,7 +501,7 @@ export const ProfilePage: FC = () => {
         {isLoadingViewed ? (
           <div className="rc-viewed-loading-card">
             <div className="rc-viewed-spinner" />
-            <span>Retrieving naval records for @{viewingUsername}...</span>
+            <span>Loading profile for @{viewingUsername}...</span>
           </div>
         ) : viewedError ? (
           <div className="rc-viewed-error-card">
@@ -533,7 +535,7 @@ export const ProfilePage: FC = () => {
                   <span className="rc-online-dot" /> Online now
                 </span>
                 <span className="rc-status-pill rc-status-verified">
-                  <CheckCircle2 size={13} /> Verified Admiral
+                  <CheckCircle2 size={13} /> Verified Player
                 </span>
               </div>
 
@@ -543,7 +545,7 @@ export const ProfilePage: FC = () => {
                   <div className="rc-hero-avatar-frame">
                     {!avatarLoadError ? (
                       <img
-                        src="/admiral-avatar.png"
+                        src={activeProfile?.avatar && (activeProfile.avatar.startsWith('data:') || activeProfile.avatar.startsWith('/') || activeProfile.avatar.startsWith('http')) ? activeProfile.avatar : '/admiral-avatar.png'}
                         alt={displayName}
                         className="rc-hero-avatar-img"
                         onError={() => setAvatarLoadError(true)}
@@ -562,7 +564,7 @@ export const ProfilePage: FC = () => {
                 <div className="rc-hero-bio-section">
                   <div className="rc-hero-name-heading">
                     <h1 className="rc-hero-username">{displayName}</h1>
-                    <span className="rc-hero-title-tag">GRANDMASTER • FLEET ADMIRAL II</span>
+                    <span className="rc-hero-title-tag">GRANDMASTER</span>
                   </div>
 
 
@@ -592,7 +594,7 @@ export const ProfilePage: FC = () => {
                       title={`Challenge ${displayName} to a match`}
                     >
                       <Swords size={16} />
-                      <span>Challenge to Duel</span>
+                      <span>Challenge to Match</span>
                     </button>
 
                     {/* Friend button: changes dynamically when looking at other users */}
@@ -627,7 +629,7 @@ export const ProfilePage: FC = () => {
                         {friendshipStatus === 'friends' && (
                           <button className="rc-btn-secondary rc-btn-allies" disabled>
                             <Users size={15} />
-                            <span>Allies</span>
+                            <span>Friends</span>
                           </button>
                         )}
                       </>
@@ -638,12 +640,12 @@ export const ProfilePage: FC = () => {
                         className="rc-btn-secondary"
                         onClick={() => {
                           setAlliesTab('search')
-                          const searchBox = document.getElementById('commander-search-box')
+                          const searchBox = document.getElementById('player-search-box')
                           searchBox?.focus()
                         }}
                       >
                         <UserPlus size={15} />
-                        <span>Find Allies</span>
+                        <span>Find Friends</span>
                       </button>
                     )}
 
@@ -664,7 +666,7 @@ export const ProfilePage: FC = () => {
                   <div className="rc-mode-icon-title">
                     <Crown size={16} className="rc-mode-icon-gold" />
                     <div>
-                      <span className="rc-mode-category">FLAGSHIP MODE</span>
+                      <span className="rc-mode-category">FEATURED MODE</span>
                       <span className="rc-mode-name">Royale Strategy</span>
                     </div>
                   </div>
@@ -901,12 +903,12 @@ export const ProfilePage: FC = () => {
                     <div className="rc-metric-cell">
                       <Flame size={17} className="rc-cell-gold-icon" />
                       <span className="rc-metric-val">198</span>
-                      <span className="rc-metric-lbl">CAULDRONS WON</span>
+                      <span className="rc-metric-lbl">GAMES WON</span>
                     </div>
                     <div className="rc-metric-cell">
                       <Shield size={17} className="rc-cell-gold-icon" />
                       <span className="rc-metric-val">342</span>
-                      <span className="rc-metric-lbl">REINFORCEMENTS</span>
+                      <span className="rc-metric-lbl">PIECES TAKEN</span>
                     </div>
                     <div className="rc-metric-cell">
                       <Clock size={17} className="rc-cell-gold-icon" />
@@ -1033,7 +1035,7 @@ export const ProfilePage: FC = () => {
                 </div>
               </div>
 
-              {/* ────── RIGHT COLUMN (PLAYER SEARCH & ALLIES, TROPHIES) ────── */}
+              {/* ────── RIGHT COLUMN (PLAYER SEARCH & FRIENDS, TROPHIES) ────── */}
               <div className="rc-dash-col-right">
 
                 {/* Player search and friend requests */}
@@ -1041,16 +1043,16 @@ export const ProfilePage: FC = () => {
                   <div className="rc-dash-card-header">
                     <div className="rc-dash-card-title">
                       <Users size={16} className="rc-title-gold-icon" />
-                      <span>Players and Friends</span>
+                      <span>Friends &amp; Players</span>
                     </div>
 
-                    {/* Allies / Requests / Search Tab Switcher */}
+                    {/* Friends / Requests / Search Tab Switcher */}
                     <div className="rc-allies-tab-switcher">
                       <button
                         className={`rc-atab-btn ${alliesTab === 'allies' ? 'active' : ''}`}
                         onClick={() => setAlliesTab('allies')}
                       >
-                        Allies ({friendsData.friends.length})
+                        Friends ({friendsData.friends.length})
                       </button>
                       <button
                         className={`rc-atab-btn ${alliesTab === 'requests' ? 'active' : ''}`}
@@ -1076,14 +1078,14 @@ export const ProfilePage: FC = () => {
                       <div className="rc-search-input-wrap">
                         <Search size={14} className="rc-search-input-icon" />
                         <input
-                          id="commander-search-box"
+                          id="player-search-box"
                           type="text"
                           value={searchQuery}
                           onChange={(e) => {
                             setSearchQuery(e.target.value)
                             handleSearch(e.target.value)
                           }}
-                          placeholder="Search commander by username (e.g. pp)..."
+                          placeholder="Search player by username..."
                           className="rc-search-input"
                         />
                         {searchQuery && (
@@ -1102,7 +1104,7 @@ export const ProfilePage: FC = () => {
                       {isSearching ? (
                         <div className="rc-search-searching">
                           <div className="rc-search-spinner" />
-                          <span>Searching naval roster...</span>
+                          <span>Searching players...</span>
                         </div>
                       ) : searchResults.length > 0 ? (
                         <div className="rc-search-results-list">
@@ -1111,7 +1113,7 @@ export const ProfilePage: FC = () => {
                             return (
                               <div key={p.id} className="rc-search-result-row">
                                 <div className="rc-sr-user-info">
-                                  <span className="rc-sr-avatar">⚓</span>
+                                  <span className="rc-sr-avatar">♟️</span>
                                   <div>
                                     <div className="rc-sr-name-row">
                                       <span className="rc-sr-name">{p.nickname || p.username}</span>
@@ -1149,11 +1151,11 @@ export const ProfilePage: FC = () => {
                       ) : searchQuery.trim() ? (
                         <div className="rc-search-empty">
                           <Compass size={24} />
-                          <span>No commanders found matching "{searchQuery}".</span>
+                          <span>No players found matching "{searchQuery}".</span>
                         </div>
                       ) : (
                         <div className="rc-search-hint">
-                          <span>Type any commander's username or URL like <strong>/pp</strong> to view their dossier.</span>
+                          <span>Type any player's username or URL like <strong>/username</strong> to view their profile.</span>
                         </div>
                       )}
                     </div>
@@ -1172,7 +1174,7 @@ export const ProfilePage: FC = () => {
                           {friendsData.received_requests.map((req) => (
                             <div key={req.id} className="rc-req-item-row">
                               <div className="rc-req-user-meta">
-                                <span className="rc-req-avi">🏴‍☠️</span>
+                                <span className="rc-req-avi">♟️</span>
                                 <div>
                                   <span className="rc-req-name">{req.sender_nickname || req.sender_username}</span>
                                   <span className="rc-req-sub">@{req.sender_username} • {req.sender_rating} ELO</span>
@@ -1208,7 +1210,7 @@ export const ProfilePage: FC = () => {
                             {friendsData.sent_requests.map((req) => (
                               <div key={req.id} className="rc-req-item-row rc-req-sent">
                                 <div className="rc-req-user-meta">
-                                  <span className="rc-req-avi">⚓</span>
+                                  <span className="rc-req-avi">♟️</span>
                                   <div>
                                     <span className="rc-req-name">{req.receiver_nickname || req.receiver_username}</span>
                                     <span className="rc-req-sub">@{req.receiver_username} • Pending...</span>
@@ -1223,7 +1225,7 @@ export const ProfilePage: FC = () => {
                     </div>
                   )}
 
-                  {/* ── Tab: Accepted Allies (Friends) ── */}
+                  {/* ── Tab: Accepted Friends ── */}
                   {alliesTab === 'allies' && (
                     <div className="rc-allies-tab-content">
                       {friendsData.friends.length > 0 ? (
@@ -1231,7 +1233,7 @@ export const ProfilePage: FC = () => {
                           {friendsData.friends.map((friend) => (
                             <div key={friend.id} className="rc-ally-row">
                               <div className="rc-ally-avi-wrap">
-                                <span className="rc-ally-avi">👨‍✈️</span>
+                                <span className="rc-ally-avi">👤</span>
                                 <span className="rc-ally-online-dot" />
                               </div>
 
@@ -1257,10 +1259,10 @@ export const ProfilePage: FC = () => {
                                 <button
                                   className="rc-btn-ally-action rc-btn-watch"
                                   onClick={() => navigationStore.returnToLanding()}
-                                  title="Challenge to Duel"
+                                  title="Challenge to Match"
                                 >
                                   <Swords size={11} />
-                                  <span>Duel</span>
+                                  <span>Play</span>
                                 </button>
                               </div>
                             </div>

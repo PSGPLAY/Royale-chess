@@ -6,7 +6,6 @@ import { PlayerBanners } from '../ui/PlayerBanners'
 import { GameHUD } from '../ui/GameHUD'
 import { GameOverModal } from '../ui/GameOverModal'
 import { PromotionModal } from '../ui/PromotionModal'
-import { AudioControls } from '../ui/AudioControls'
 import { MoveHistoryPanel } from '../ui/MoveHistoryPanel'
 import { useGameStore } from '../../state/gameStore'
 import { useGameAudio } from '../../audio/useGameAudio'
@@ -42,7 +41,6 @@ const GameScreen: FC = () => {
         <PlayerBanners />
         <GameHUD />
       </div>
-      <AudioControls />
       <GameOverModal />
       <MoveHistoryPanel />
       <PromotionModal />

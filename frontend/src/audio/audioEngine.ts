@@ -14,7 +14,17 @@ class AudioEngine {
   private ctx: AudioContext | null = null
   private masterGain: GainNode | null = null
   private _masterVolume = 0.75
+  private _sfxVolume = 1.0
+  private _ambientVolume = 0.5
   private _isMuted = false
+
+  // Ambient nodes
+  private ambientSource: AudioBufferSourceNode | null = null
+  private ambientGain: GainNode | null = null
+  private ambientFilter: BiquadFilterNode | null = null
+  private ambientLfo: OscillatorNode | null = null
+  private ambientLfoGain: GainNode | null = null
+  private isAmbientRunning = false
 
   // ─── Lazy AudioContext Bootstrap ──────────────────────────────────────────
 
@@ -45,6 +55,29 @@ class AudioEngine {
 
   get isMuted(): boolean {
     return this._isMuted
+  }
+
+  get sfxVolume(): number {
+    return this._sfxVolume
+  }
+
+  get ambientVolume(): number {
+    return this._ambientVolume
+  }
+
+  setSfxVolume(v: number): void {
+    this._sfxVolume = Math.max(0, Math.min(1, v))
+  }
+
+  setAmbientVolume(v: number): void {
+    this._ambientVolume = Math.max(0, Math.min(1, v))
+    if (this.ambientGain && this.ctx) {
+      this.ambientGain.gain.setTargetAtTime(
+        this._isMuted ? 0 : this._ambientVolume * 0.35,
+        this.ctx.currentTime,
+        0.05
+      )
+    }
   }
 
   setMasterVolume(v: number): void {
@@ -427,13 +460,107 @@ class AudioEngine {
     }
   }
 
-  // ─── Ambient controls (Quiet / Optional) ──────────────────────────────────
-  startAmbient(): void {
-    // Kept ultra quiet & optional
+  // ─── Ambient Sea FX & Ocean Breeze Synthesis ────────────────────────────
+  startAmbient(vol?: number): void {
+    if (this.isAmbientRunning) {
+      if (vol !== undefined) this.setAmbientVolume(vol)
+      return
+    }
+
+    try {
+      const ctx = this.getCtx()
+      if (vol !== undefined) this._ambientVolume = Math.max(0, Math.min(1, vol))
+
+      // 4-second brownian-like noise buffer for ocean breeze/water
+      const bufferSize = ctx.sampleRate * 4
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      let lastOut = 0.0
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1
+        data[i] = (lastOut + 0.02 * white) / 1.02
+        lastOut = data[i]
+        data[i] *= 3.5 // compensation
+      }
+
+      const noiseSource = ctx.createBufferSource()
+      noiseSource.buffer = buffer
+      noiseSource.loop = true
+
+      // Gentle lowpass filter simulating ocean waves
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(320, ctx.currentTime)
+      filter.Q.setValueAtTime(1.2, ctx.currentTime)
+
+      // LFO for natural wave swell (period ~ 6.5 seconds)
+      const lfo = ctx.createOscillator()
+      lfo.frequency.setValueAtTime(0.15, ctx.currentTime)
+      const lfoGain = ctx.createGain()
+      lfoGain.gain.setValueAtTime(180, ctx.currentTime)
+      lfo.connect(lfoGain)
+      lfoGain.connect(filter.frequency)
+
+      // Ambient gain node
+      const gain = ctx.createGain()
+      const targetGain = this._isMuted ? 0 : this._ambientVolume * 0.35
+      gain.gain.setValueAtTime(0.001, ctx.currentTime)
+      gain.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.6)
+
+      // Connect pipeline: noise -> filter -> gain -> masterGain
+      noiseSource.connect(filter)
+      filter.connect(gain)
+      gain.connect(this.getMaster())
+
+      noiseSource.start()
+      lfo.start()
+
+      this.ambientSource = noiseSource
+      this.ambientFilter = filter
+      this.ambientLfo = lfo
+      this.ambientLfoGain = lfoGain
+      this.ambientGain = gain
+      this.isAmbientRunning = true
+    } catch {
+      // AudioContext safe catch
+    }
   }
 
   stopAmbient(): void {
-    // No-op
+    if (!this.isAmbientRunning) return
+    try {
+      if (this.ambientGain && this.ctx) {
+        this.ambientGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.15)
+      }
+      setTimeout(() => {
+        try {
+          this.ambientSource?.stop()
+          this.ambientSource?.disconnect()
+          this.ambientLfo?.stop()
+          this.ambientLfo?.disconnect()
+          this.ambientLfoGain?.disconnect()
+          this.ambientFilter?.disconnect()
+          this.ambientGain?.disconnect()
+        } catch {
+          // ignore
+        }
+        this.ambientSource = null
+        this.ambientFilter = null
+        this.ambientLfo = null
+        this.ambientLfoGain = null
+        this.ambientGain = null
+        this.isAmbientRunning = false
+      }, 200)
+    } catch {
+      this.isAmbientRunning = false
+    }
+  }
+
+  playTestSound(kind: 'move' | 'capture' | 'check' | 'chime' = 'move'): void {
+    if (kind === 'move') this.playMove()
+    else if (kind === 'capture') this.playCapture()
+    else if (kind === 'check') this.playCheck()
+    else this.playPromotion()
   }
 }
 

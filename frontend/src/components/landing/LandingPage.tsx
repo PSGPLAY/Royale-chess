@@ -52,14 +52,13 @@ export const LandingPage: FC = () => {
             Pass & Play
           </button>
           <button
-            className="nav-item nav-item-rankings"
+            className="nav-item nav-item-settings"
             onClick={() => {
               audioEngine.playButtonClick()
-              navigationStore.openProfilePage('leaderboard')
+              navigationStore.openSettingsPage()
             }}
           >
-            <Trophy size={14} />
-            <span className="rankings-label">Rankings</span>
+            Settings
           </button>
 
           {/* Profile / Auth Pill */}
@@ -69,7 +68,13 @@ export const LandingPage: FC = () => {
               onClick={() => navigationStore.openProfilePage('overview', user.username)}
               title="View your profile and rankings"
             >
-              <div className="nav-avatar">🏴‍☠️</div>
+              <div className="nav-avatar">
+                {user.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('/') || user.avatar.startsWith('http')) ? (
+                  <img src={user.avatar} alt="Avatar" className="nav-avatar-img" />
+                ) : (
+                  '👤'
+                )}
+              </div>
               <div className="nav-user-info">
                 <span className="nav-nickname">{user.nickname || user.username}</span>
                 <div className="nav-stats-row">

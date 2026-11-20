@@ -99,17 +99,6 @@ class ProfileView(APIView):
         serializer = PlayerProfileSerializer(get_or_create_profile(request.user))
         return Response(serializer.data)
 
-
-class PublicProfileView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, username):
-        try:
-            profile = PlayerProfile.objects.select_related('user').get(user__username__iexact=username)
-        except PlayerProfile.DoesNotExist:
-            return Response({'error': 'Player not found.'}, status=status.HTTP_404_NOT_FOUND)
-        return Response(PlayerProfileSerializer(profile).data)
-
     def patch(self, request):
         if not hasattr(request.data, 'get'):
             return Response({'error': 'Expected a JSON object.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -126,6 +115,26 @@ class PublicProfileView(APIView):
         serializer = PlayerProfileSerializer(profile)
         return Response(serializer.data)
 
+    def delete(self, request):
+        user = request.user
+        # Permanently delete the user account and cascaded profile, tokens, and friend requests
+        user.delete()
+        return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_200_OK)
+
+
+class PublicProfileView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, username):
+        try:
+            profile = PlayerProfile.objects.select_related('user').get(
+                user__username__iexact=username,
+                user__is_active=True
+            )
+        except PlayerProfile.DoesNotExist:
+            return Response({'error': 'Player not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PlayerProfileSerializer(profile).data)
+
 
 class LeaderboardView(APIView):
     permission_classes = [AllowAny]
@@ -136,7 +145,7 @@ class LeaderboardView(APIView):
         except (TypeError, ValueError):
             return Response({'error': 'Limit must be an integer.'}, status=status.HTTP_400_BAD_REQUEST)
         limit = max(1, min(limit, 100))
-        top_players = PlayerProfile.objects.order_by('-rating_elo')[:limit]
+        top_players = PlayerProfile.objects.filter(user__is_active=True).order_by('-rating_elo')[:limit]
         serializer = LeaderboardSerializer(top_players, many=True)
         return Response(serializer.data)
 
@@ -150,6 +159,8 @@ class PlayerSearchView(APIView):
             return Response([])
 
         profiles = PlayerProfile.objects.select_related('user').filter(
+            user__is_active=True
+        ).filter(
             Q(user__username__icontains=query) | Q(nickname__icontains=query)
         ).distinct()[:15]
 
@@ -205,7 +216,7 @@ class SendFriendRequestView(APIView):
             return Response({'error': 'You cannot send a friend request to yourself.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            target_user = User.objects.get(username__iexact=target_username)
+            target_user = User.objects.get(username__iexact=target_username, is_active=True)
         except User.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
 

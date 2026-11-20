@@ -263,6 +263,12 @@ class ApiClient {
     })
   }
 
+  async deleteAccount(): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/api/auth/profile/', {
+      method: 'DELETE',
+    })
+  }
+
   async getLeaderboard(limit = 20): Promise<UserProfileData[]> {
     return this.request<UserProfileData[]>(`/api/auth/leaderboard/?limit=${limit}`)
   }

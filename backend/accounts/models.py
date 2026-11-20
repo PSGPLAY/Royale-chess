@@ -7,7 +7,7 @@ from django.dispatch import receiver
 class PlayerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     nickname = models.CharField(max_length=50, blank=True)
-    avatar = models.CharField(max_length=100, default='pirate_captain')
+    avatar = models.TextField(blank=True, default='pirate_captain')
     
     # Persistent account currency (for purchasing cosmetic skins, boards, pieces)
     persistent_coins = models.PositiveIntegerField(default=100)

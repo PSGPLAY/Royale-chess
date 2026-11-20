@@ -134,6 +134,30 @@ class AuthStore {
     }
   }
 
+  deleteAccount = async (): Promise<boolean> => {
+    try {
+      if (this.state.token) {
+        await api.deleteAccount()
+      }
+      clearStoredSession()
+      this.setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+      })
+      return true
+    } catch (err: unknown) {
+      console.error('Account deletion error:', err)
+      clearStoredSession()
+      this.setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+      })
+      return false
+    }
+  }
+
   refreshProfile = async (): Promise<void> => {
     try {
       const profile = await api.getProfile()
@@ -147,6 +171,11 @@ class AuthStore {
         this.setState({ user: null, token: null, isAuthenticated: false })
       }
     }
+  }
+
+  updateUser = (user: UserProfileData): void => {
+    localStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(user))
+    this.setState({ user })
   }
 }
 
